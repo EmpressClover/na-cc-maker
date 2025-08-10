@@ -1,0 +1,928 @@
+
+@font-face {
+    font-family: Franklin;
+    src: url(/_next/static/media/franklin.d7aabc71.ttf)
+}
+
+
+* {
+    margin: 0;
+}
+
+body {
+    font-family: 'Trebuchet MS', Arial, sans-serif;
+    font-size: 11px;
+    color: #000;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+
+.instructions {
+    text-align: center;
+    margin-bottom: 15px;
+    padding: 10px;
+    background-color: #f0f8ff;
+    border: 1px solid #d0e7ff;
+    max-width: 566px;
+}
+
+.instructions h3 {
+    font-family: 'Trebuchet MS', Arial, sans-serif;
+    font-size: 14px;
+    color: #280092;
+    margin-bottom: 5px;
+}
+
+.instructions p {
+    font-family: 'Trebuchet MS', Arial, sans-serif;
+    font-size: 11px;
+    color: #333;
+    margin: 0;
+}
+
+
+.character-container {
+    width: 566px;
+    min-height: 513px;
+    background-color: #fff;
+    line-height: 16px;
+    margin-bottom: 20px;
+}
+
+
+.font-fix {
+    font-family: 'Trebuchet MS', verdana, sans-serif;
+    font-size: 11px;
+}
+
+h2 {
+    display: inline;
+    font: normal normal 700 14px/normal 'Trebuchet MS', arial, verdana, sans-serif;
+    color: #0066cc;
+}
+
+
+[contenteditable="true"] {
+    outline: none;
+    transition: background-color 0.2s;
+}
+
+[contenteditable="true"]:hover {
+    background-color: #f0f0f0;
+}
+
+[contenteditable="true"]:focus {
+    background-color: #e6f3ff;
+    border: 1px dashed #0066cc;
+    padding: 2px;
+}
+
+
+img[onclick] {
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+img[onclick]:hover {
+    opacity: 0.8;
+}
+
+
+.energy-required-link {
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.energy-required-link:hover {
+    color: #0066cc;
+}
+
+.energy-display {
+    display: inline-flex;
+    gap: 1px;
+    margin-left: 3px;
+    align-items: center;
+}
+
+.energy-square {
+    width: 8px;
+    height: 8px;
+    border: 1px solid #000;
+    display: inline-block;
+    margin-left: 1.5px;
+}
+
+.energy-square.taijutsu {
+    background-color: #00df7e;
+}
+
+.energy-square.bloodline {
+    background-color: #df003a;
+}
+
+.energy-square.ninjutsu {
+    background-color: #00a7df;
+}
+
+.energy-square.genjutsu {
+    background-color: #ffffff;
+}
+
+.energy-square.random {
+    background-color: black;
+}
+
+
+.energy-modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.energy-modal-content {
+    background-color: #fff;
+    margin: 15% auto;
+    padding: 0;
+    border: 1px solid #000;
+    width: 300px;
+    max-width: 90%;
+    font-family: 'Trebuchet MS', Arial, sans-serif;
+}
+
+.energy-modal-header {
+    background-color: #0066cc;
+    color: white;
+    padding: 10px 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.energy-modal-header h3 {
+    margin: 0;
+    font-size: 14px;
+    font-family: 'Trebuchet MS', Arial, sans-serif;
+    margin-left: 55px;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 0;
+    width: 25px;
+    height: 25px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.close-btn:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+
+.energy-selector {
+    padding: 15px;
+    margin-left: 46px;
+}
+
+.energy-type {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+    gap: 5px;
+}
+
+.energy-label {
+    font-family: 'Trebuchet MS', Arial, sans-serif;
+    font-size: 11px;
+    min-width: 50px;
+    text-align: left;
+}
+
+.energy-btn {
+    font-family: 'Trebuchet MS', Arial, sans-serif;
+    font-size: 12px;
+    width: 20px;
+    height: 20px;
+    border: 1px solid #000;
+    background-color: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    padding: 0;
+}
+
+.energy-btn:hover {
+    background-color: #f0f0f0;
+}
+
+.energy-btn:active {
+    background-color: #e0e0e0;
+}
+
+.energy-count {
+    font-family: 'Trebuchet MS', Arial, sans-serif;
+    font-size: 11px;
+    min-width: 15px;
+    text-align: center;
+}
+
+.energy-squares {
+    display: flex;
+    gap: 2px;
+    margin-left: 5px;
+}
+
+.energy-modal-footer {
+    padding: 10px 15px;
+    text-align: right;
+    border-top: 1px solid #ddd;
+}
+
+.done-btn {
+    font-family: 'Trebuchet MS', Arial, sans-serif;
+    font-size: 11px;
+    padding: 5px 15px;
+    background-color: #0066cc;
+    color: white;
+    border: none;
+    cursor: pointer;
+    margin-right: 110px;
+}
+
+.done-btn:hover {
+    background-color: #0052a3;
+}
+
+
+.pagedescription {
+    width: 80%;
+    margin-top: 10px;
+    text-align: left;
+}
+
+.pagedescription h2 {
+    color: #280092;
+    display: inline;
+    font-size: 14px;
+}
+
+.character-image {
+    display: block;
+    margin: 0 auto 10px auto;
+    max-width: 100px;
+    max-height: 100px;
+}
+
+
+img.pre {
+    margin-top: -6px;
+    border: 0 #000;
+}
+
+.pageborda {
+    border: 1px solid #000;
+}
+
+.page-energy {
+    margin-left: 3px;
+    margin-top: 2px;
+}
+
+
+.dots {
+    height: 1px;
+    font-size: 1px;
+    background-image: url(https://i.imgur.com/MaAwqPF.gif);
+    background-position: 0 0;
+    background-repeat: repeat-x;
+}
+
+
+.skilldescr {
+    min-height: 80px;
+    padding: 3px;
+    background-color: #fafafa;
+}
+
+.skilldescr img {
+    margin: 2px 5px 2px 0;
+}
+
+
+.charskill {
+    margin: 30px 0 10px 6px;
+    width: 47%;
+    text-align: left;
+    float: left;
+    cursor: move;
+    transition: all 0.2s ease;
+}
+
+
+.charskill[draggable="true"] {
+    user-select: none;
+}
+
+.charskill.drag-over {
+    background-color: #e6f3ff;
+    border: 1px dashed #0066cc;
+    padding: 5px;
+}
+
+.charskill.dragging {
+    opacity: 0.5;
+    transform: scale(0.98);
+}
+
+.charskill h2 {
+    display: inline;
+    font: normal normal 700 14px/normal 'Trebuchet MS', arial, verdana, sans-serif;
+    color: #f9860b;
+}
+
+
+.fleft {
+    float: left;
+    margin-top: 2px;
+}
+
+.fright {
+    float: right;
+    margin-top: 2px;
+}
+
+.clear {
+    clear: both;
+}
+
+
+.pageinfo {
+    font: normal normal normal 10px/normal 'Trebuchet MS', Arial, Verdana, sans-serif;
+    margin-top: 2px;
+    color: grey;
+}
+
+
+.add-skill-container {
+    text-align: center;
+    margin-top: 20px;
+    margin-bottom: 10px;
+}
+
+.add-skill-btn {
+    font-family: 'Trebuchet MS', Arial, sans-serif;
+    font-size: 11px;
+    padding: 8px 16px;
+    background-color: #0066cc;
+    color: white;
+    border: 1px solid #000;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.add-skill-btn:hover {
+    background-color: #0052a3;
+}
+
+.add-skill-btn:active {
+    background-color: #003d7a;
+}
+
+
+.remove-skill-btn {
+    font-family: 'Trebuchet MS', Arial, sans-serif;
+    font-size: 14px;
+    font-weight: bold;
+    width: 15px;
+    height: 15px;
+    background-color: #dc3545;
+    color: white;
+    border: 1px solid #000;
+    cursor: pointer;
+    float: right;
+    margin-right: 5px;
+    margin-top: -2px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    transition: background-color 0.2s;
+}
+
+.remove-skill-btn:hover {
+    background-color: #c82333;
+}
+
+.remove-skill-btn:active {
+    background-color: #a71e2a;
+}
+
+
+.controls {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.controls button {
+    font-family: 'Trebuchet MS', Arial, sans-serif;
+    font-size: 11px;
+    padding: 8px 16px;
+    background-color: #0066cc;
+    color: white;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.controls button:hover {
+    background-color: #0052a3;
+}
+
+.controls button:active {
+    background-color: #003d7a;
+}
+
+.image-upload-modal {
+    display: block;
+    position: fixed;
+    z-index: 1001;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.image-upload-content {
+    background-color: #fff;
+    margin: 15% auto;
+    padding: 0;
+    border: 1px solid #000;
+    width: 400px;
+    max-width: 90%;
+    font-family: 'Trebuchet MS', Arial, sans-serif;
+}
+
+.image-upload-header {
+    background-color: #0066cc;
+    color: white;
+    padding: 10px 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.image-upload-header h3 {
+    margin: 0;
+    font-size: 14px;
+    font-family: 'Trebuchet MS', Arial, sans-serif;
+    margin-left: 120px;
+}
+
+.image-upload-body {
+    padding: 20px;
+}
+
+.upload-option {
+    margin-bottom: 20px;
+}
+
+.upload-option h4 {
+    font-family: 'Trebuchet MS', Arial, sans-serif;
+    font-size: 12px;
+    margin-bottom: 8px;
+    color: #333;
+}
+
+.file-input {
+    display: none;
+}
+
+.upload-btn, .url-btn {
+    font-family: 'Trebuchet MS', Arial, sans-serif;
+    font-size: 11px;
+    padding: 6px 12px;
+    background-color: #0066cc;
+    color: white;
+    border: 1px solid #000;
+    cursor: pointer;
+    margin-left: 8px;
+}
+
+.upload-btn:hover, .url-btn:hover {
+    background-color: #0052a3;
+}
+
+.manual-btn {
+    font-family: 'Trebuchet MS', Arial, sans-serif;
+    font-size: 11px;
+    padding: 6px 12px;
+    background-color: #28a745;
+    color: white;
+    border: 1px solid #000;
+    cursor: pointer;
+}
+
+.manual-btn:hover {
+    background-color: #218838;
+}
+
+.manual-instructions {
+    font-family: 'Trebuchet MS', Arial, sans-serif;
+    font-size: 10px;
+    color: #666;
+    margin: 8px 0;
+    line-height: 1.4;
+}
+
+.upload-status {
+    margin-top: 10px;
+    font-family: 'Trebuchet MS', Arial, sans-serif;
+    font-size: 11px;
+}
+
+.upload-progress {
+    color: #0066cc;
+    font-weight: bold;
+}
+
+.upload-success {
+    color: #28a745;
+    font-weight: bold;
+}
+
+.upload-error {
+    color: #dc3545;
+    font-size: 10px;
+    line-height: 1.3;
+}
+
+.url-input {
+    font-family: 'Trebuchet MS', Arial, sans-serif;
+    font-size: 11px;
+    padding: 4px 6px;
+    border: 1px solid #000;
+    width: 250px;
+}
+
+.upload-divider {
+    text-align: center;
+    font-family: 'Trebuchet MS', Arial, sans-serif;
+    font-size: 12px;
+    color: #666;
+    margin: 15px 0;
+    font-weight: bold;
+}
+
+.image-upload-footer {
+    padding: 10px 15px;
+    text-align: right;
+    border-top: 1px solid #ddd;
+}
+
+.cancel-btn {
+    font-family: 'Trebuchet MS', Arial, sans-serif;
+    font-size: 11px;
+    padding: 5px 15px;
+    background-color: #666;
+    color: white;
+    border: 1px solid #000;
+    cursor: pointer;
+    margin-right: 150px;
+}
+
+.cancel-btn:hover {
+    background-color: #555;
+}
+
+.skill-glossary-modal {
+    position: fixed;
+    z-index: 1002;
+    left: 50px;
+    top: 50px;
+    width: 600px;
+    max-width: 90vw;
+    max-height: 80vh;
+    background-color: #fff;
+    border: 2px solid #000;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    font-family: 'Trebuchet MS', Arial, sans-serif;
+    cursor: move;
+    overflow: hidden;
+}
+
+.skill-glossary-content {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    max-height: 80vh;
+    overflow: hidden;
+}
+
+.skill-glossary-header {
+    background-color: #0066cc;
+    color: white;
+    padding: 10px 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: move;
+    user-select: none;
+}
+
+.skill-glossary-header h3 {
+    margin: 0;
+    font-size: 14px;
+    font-family: 'Trebuchet MS', Arial, sans-serif;
+}
+
+.glossary-search-container {
+    padding: 10px 15px;
+    border-bottom: 1px solid #ddd;
+    background-color: #f9f9f9;
+}
+
+.glossary-search-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-family: 'Trebuchet MS', Arial, sans-serif;
+    font-size: 12px;
+    box-sizing: border-box;
+}
+
+.glossary-search-input:focus {
+    outline: none;
+    border-color: #0066cc;
+    box-shadow: 0 0 3px rgba(0, 102, 204, 0.3);
+}
+
+.skill-glossary-body {
+    padding: 15px;
+    overflow-y: auto;
+    max-height: calc(80vh - 120px);
+    flex: 1;
+}
+
+.glossary-section {
+    margin-bottom: 20px;
+}
+
+.glossary-section h4 {
+    font-family: 'Trebuchet MS', Arial, sans-serif;
+    font-size: 14px;
+    color: #0066cc;
+    margin: 0 0 8px 0;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 3px;
+}
+
+.glossary-section ul {
+    margin: 0;
+    padding-left: 15px;
+    list-style-type: disc;
+}
+
+.glossary-section li {
+    font-family: 'Trebuchet MS', Arial, sans-serif;
+    font-size: 12px;
+    line-height: 1.4;
+    margin-bottom: 4px;
+    color: #333;
+}
+
+.glossary-section li strong {
+    color: #0066cc;
+    font-weight: bold;
+}
+
+.skill-glossary-modal.dragging {
+    cursor: grabbing;
+}
+
+.skill-glossary-modal:not(.dragging) .skill-glossary-header:hover {
+    background-color: #0052a3;
+}
+
+.skill-glossary-body::-webkit-scrollbar {
+    width: 8px;
+}
+
+.skill-glossary-body::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.skill-glossary-body::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+.skill-glossary-body::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+.character-info-glossary-modal {
+    position: fixed;
+    z-index: 1003;
+    left: 100px;
+    top: 100px;
+    width: 650px;
+    max-width: 90vw;
+    max-height: 80vh;
+    background-color: #fff;
+    border: 2px solid #000;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    font-family: 'Trebuchet MS', Arial, sans-serif;
+    cursor: move;
+    overflow: hidden;
+}
+
+.character-info-glossary-content {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    max-height: 80vh;
+    overflow: hidden;
+}
+
+.character-info-glossary-header {
+    background-color: #0066cc;
+    color: white;
+    padding: 10px 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: move;
+    user-select: none;
+}
+
+.character-info-glossary-header h3 {
+    margin: 0;
+    font-size: 14px;
+    font-family: 'Trebuchet MS', Arial, sans-serif;
+}
+
+.character-info-glossary-body {
+    padding: 15px;
+    overflow-y: auto;
+    max-height: calc(80vh - 60px);
+    flex: 1;
+}
+
+.info-section {
+    margin-bottom: 25px;
+}
+
+.info-section h4 {
+    font-family: 'Trebuchet MS', Arial, sans-serif;
+    font-size: 16px;
+    color: #0066cc;
+    margin: 0 0 10px 0;
+    border-bottom: 2px solid #0066cc;
+    padding-bottom: 5px;
+}
+
+.info-section ul {
+    margin: 0;
+    padding-left: 20px;
+    list-style-type: disc;
+}
+
+.info-section li {
+    font-family: 'Trebuchet MS', Arial, sans-serif;
+    font-size: 12px;
+    line-height: 1.6;
+    margin-bottom: 6px;
+    color: #333;
+}
+
+.info-section li strong {
+    color: #000;
+    font-weight: bold;
+}
+
+.info-description {
+    font-family: 'Trebuchet MS', Arial, sans-serif;
+    font-size: 11px;
+    color: #666;
+    margin: 0 0 10px 0;
+    line-height: 1.4;
+    font-style: italic;
+}
+
+.class-subsection {
+    margin: 15px 0;
+    padding-left: 15px;
+}
+
+.class-subsection h5 {
+    font-family: 'Trebuchet MS', Arial, sans-serif;
+    font-size: 13px;
+    color: #0066cc;
+    margin: 0 0 8px 0;
+    font-weight: bold;
+}
+
+.class-subsection ul {
+    margin: 0;
+    padding-left: 15px;
+}
+
+.energy-color {
+    padding: 2px 6px;
+    border-radius: 3px;
+    color: white;
+    font-weight: bold;
+    text-shadow: 1px 1px 1px rgba(0,0,0,0.5);
+}
+
+.vitality-color {
+    background-color: #00df7e;
+}
+
+.manifest-color {
+    background-color: #df003a;
+}
+
+.energy-type-color {
+    background-color: #00a7df;
+}
+
+.spirit-color {
+    background-color: #ad00df;
+}
+
+.character-info-glossary-modal.dragging {
+    cursor: grabbing;
+}
+
+.character-info-glossary-modal:not(.dragging) .character-info-glossary-header:hover {
+    background-color: #0052a3;
+}
+
+.character-info-glossary-body::-webkit-scrollbar {
+    width: 8px;
+}
+
+.character-info-glossary-body::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.character-info-glossary-body::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+.character-info-glossary-body::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+.copy-btn {
+    font-family: 'Trebuchet MS', Arial, sans-serif;
+    font-size: 10px;
+    padding: 2px 4px;
+    margin-left: 8px;
+    background-color: #0066cc;
+    color: white;
+    border: 1px solid #0066cc;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    vertical-align: middle;
+}
+
+.copy-btn:hover {
+    background-color: #0052a3;
+}
+
+.copy-btn:active {
+    background-color: #003d7a;
+    transform: scale(0.95);
+}
+
+.copy-btn:focus {
+    outline: none;
+    box-shadow: 0 0 3px rgba(0, 102, 204, 0.5);
+} 

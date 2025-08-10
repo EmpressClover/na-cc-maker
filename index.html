@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Naruto-Arena Character Creator [BETA]</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="instructions">
+        <h3>Naruto-Arena Character Creator [BETA]</h3>
+        <p>Click on any text to edit it directly
+            <br> Click on images to change them 
+            <br> Use the buttons below to save and load your character<br>
+            Click on 'Chakra required' to change Chakra required for each skill.<br>
+            Drag and Drop skills to replace their order.<br>
+            "Load Character Image" opens a new tab with your character image.
+        </p>
+    </div>
+    <div class="controls">
+        <button onclick="saveData()">Save Character</button>
+        <button onclick="loadData()">Load Character</button>
+        <button onclick="exportData()">Export JSON</button>
+        <input type="file" id="importFile" accept=".json" onchange="importData()" style="display: none;">
+        <button onclick="document.getElementById('importFile').click()">Import JSON</button>
+        <button onclick="resetToDefault()">Reset to Default</button>
+        <button onclick="loadCharacterImage()">Load Character Image</button>
+    </div><br><br>
+
+
+    <div class="character-container">
+        <center>
+            <div class="pagedescription">
+                <h2 class="font-fix character-name" contenteditable="true">Haruno Sakura</h2>
+                <div class="dots"></div>
+                <div class="skilldescr">
+                    <img src="https://i.imgur.com/TWShCf2.png" class="pageborda character-portrait" align="left" onclick="changeImage(this)">
+                    <span class="character-description" contenteditable="true">A Genin from Team 7, Sakura is very intelligent, but self-conscious about herself. Having just recently received training from Tsunade, Sakura is now able to deliver powerful punches and heal her own allies.</span>
+                </div>
+                <div class="dots"></div>
+                <b class="font-fix">Requirement to unlock:</b> <span class="unlock-requirement" contenteditable="true">No requirements</span>
+            </div>
+
+            <div class="charskill">
+                &nbsp;Skill: 
+                <h2 class="skill-name" contenteditable="true">KO Punch</h2>
+                <button class="remove-skill-btn" onclick="removeSkill(this)" title="Remove this skill">&times;</button>
+                <div class="dots"></div>
+                <div class="skilldescr">
+                    <img src="https://i.imgur.com/x0Yqker.png" class="pageborda skill-image" align="left" onclick="changeImage(this)">
+                    <span class="font-fix skill-description" contenteditable="true" style="min-height:83px">
+                        Sakura punches one enemy with all her strength, dealing 20 damage to them and stunning their physical and mental skills for 1 turn. During 'Inner Sakura', this skill will deal 10 additional damage.
+                    </span>
+                </div>
+                <div class="dots"></div>
+                <div class="fleft">
+                    &nbsp;<u class="font-fix">Cooldown:</u> <span class="cooldown" contenteditable="true">None</span>
+                </div>
+                <div class="fright">
+                    <u class="font-fix energy-required-link" onclick="openEnergySelector(this)">Chakra required:</u>
+                    <div class="energy-display">
+                        <div class="energy-square taijutsu"></div>
+                    </div>
+                </div>
+                <div class="clear"></div>
+                <div class="pageinfo fleft">
+                    &nbsp;Classes: <span class="skill-classes" contenteditable="true">Physical, Melee, Instant</span>.
+                </div>
+            </div>
+
+            <div class="charskill">
+                &nbsp;Skill: 
+                <h2 class="skill-name" contenteditable="true">Cure</h2>
+                <button class="remove-skill-btn" onclick="removeSkill(this)" title="Remove this skill">&times;</button>
+                <div class="dots"></div>
+                <div class="skilldescr">
+                    <img src="https://i.imgur.com/M2O5AdG.png" class="pageborda skill-image" align="left" onclick="changeImage(this)">
+                    <span class="font-fix skill-description" contenteditable="true" style="min-height:83px">
+                        Using basic healing techniques, Sakura heals herself or an ally for 25 health.
+                    </span>
+                </div>
+                <div class="dots"></div>
+                <div class="fleft">
+                    &nbsp;<u class="font-fix">Cooldown:</u> <span class="cooldown" contenteditable="true">None</span>
+                </div>
+                <div class="fright">
+                    <u class="font-fix energy-required-link" onclick="openEnergySelector(this)">Chakra required:</u>
+                    <div class="energy-display">
+                        <div class="energy-square ninjutsu"></div>
+                    </div>
+                </div>
+                <div class="clear"></div>
+                <div class="pageinfo fleft">
+                    &nbsp;Classes: <span class="skill-classes" contenteditable="true">Chakra, Instant</span>.
+                </div>
+            </div>
+
+            <div class="clear"></div>
+
+            <div class="charskill">
+                &nbsp;Skill: 
+                <h2 class="skill-name" contenteditable="true">Inner Sakura</h2>
+                <button class="remove-skill-btn" onclick="removeSkill(this)" title="Remove this skill">&times;</button>
+                <div class="dots"></div>
+                <div class="skilldescr">
+                    <img src="https://i.imgur.com/03BjSkn.jpg" class="pageborda skill-image" align="left" onclick="changeImage(this)">
+                    <span class="font-fix skill-description" contenteditable="true" style="min-height:83px">
+                        Sakura's inner self surfaces and urges her on. For 4 turns, Sakura will gain 10 points of damage reduction. During this time, Sakura will ignore non-damage effects and 'KO Punch' will deal 10 additional damage.
+                    </span>
+                </div>
+                <div class="dots"></div>
+                <div class="fleft">
+                    &nbsp;<u class="font-fix">Cooldown:</u> <span class="cooldown" contenteditable="true">4</span>
+                </div>
+                <div class="fright">
+                    <u class="font-fix energy-required-link" onclick="openEnergySelector(this)">Chakra required:</u>
+                    <div class="energy-display">
+                        <div class="energy-square random"></div>
+                    </div>
+                </div>
+                <div class="clear"></div>
+                <div class="pageinfo fleft">
+                    &nbsp;Classes: <span class="skill-classes" contenteditable="true">Mental, Instant, Unique</span>.
+                </div>
+            </div>
+
+            <div class="charskill">
+                &nbsp;Skill: 
+                <h2 class="skill-name" contenteditable="true">Sakura Replacement Technique</h2>
+                <button class="remove-skill-btn" onclick="removeSkill(this)" title="Remove this skill">&times;</button>
+                <div class="dots"></div>
+                <div class="skilldescr">
+                    <img src="https://i.imgur.com/hGOwcqv.png" class="pageborda skill-image" align="left" onclick="changeImage(this)">
+                    <span class="font-fix skill-description" contenteditable="true" style="min-height:83px">
+                        This skill makes Haruno Sakura invulnerable for 1 turn.
+                    </span>
+                </div>
+                <div class="dots"></div>
+                <div class="fleft">
+                    &nbsp;<u class="font-fix">Cooldown:</u> <span class="cooldown" contenteditable="true">4</span>
+                </div>
+                <div class="fright">
+                    <u class="font-fix energy-required-link" onclick="openEnergySelector(this)">Chakra required:</u>
+                    <div class="energy-display">
+                        <div class="energy-square random"></div>
+                    </div>
+                </div>
+                <div class="clear"></div>
+                <div class="pageinfo fleft">
+                    &nbsp;Classes: <span class="skill-classes" contenteditable="true">Chakra, Instant</span>.
+                </div>
+            </div>
+
+            <div class="clear"></div>
+            
+            <div class="add-skill-container">
+                <button class="add-skill-btn" onclick="addNewSkill()">Add Skill</button>
+            </div>
+        </center>
+    </div>
+
+    <div id="energyModal" class="energy-modal" onclick="closeEnergySelector(event)">
+        <div class="energy-modal-content" onclick="event.stopPropagation()">
+            <div class="energy-modal-header">
+                <h3>Select Chakra Required</h3>
+                <button class="close-btn" onclick="closeEnergySelector()">&times;</button>
+            </div>
+            <div class="energy-selector">
+                <div class="energy-type">
+                    <span class="energy-label">Taijutsu:</span>
+                    <button class="energy-btn minus" onclick="adjustEnergy(this.parentElement, -1)">-</button>
+                    <span class="energy-count">0</span>
+                    <button class="energy-btn plus" onclick="adjustEnergy(this.parentElement, 1)">+</button>
+                    <div class="energy-squares"></div>
+                </div>
+                <div class="energy-type">
+                    <span class="energy-label">Bloodline:</span>
+                    <button class="energy-btn minus" onclick="adjustEnergy(this.parentElement, -1)">-</button>
+                    <span class="energy-count">0</span>
+                    <button class="energy-btn plus" onclick="adjustEnergy(this.parentElement, 1)">+</button>
+                    <div class="energy-squares"></div>
+                </div>
+                <div class="energy-type">
+                    <span class="energy-label">Ninjutsu:</span>
+                    <button class="energy-btn minus" onclick="adjustEnergy(this.parentElement, -1)">-</button>
+                    <span class="energy-count">0</span>
+                    <button class="energy-btn plus" onclick="adjustEnergy(this.parentElement, 1)">+</button>
+                    <div class="energy-squares"></div>
+                </div>
+                <div class="energy-type">
+                    <span class="energy-label">Genjutsu:</span>
+                    <button class="energy-btn minus" onclick="adjustEnergy(this.parentElement, -1)">-</button>
+                    <span class="energy-count">0</span>
+                    <button class="energy-btn plus" onclick="adjustEnergy(this.parentElement, 1)">+</button>
+                    <div class="energy-squares"></div>
+                </div>
+                <div class="energy-type">
+                    <span class="energy-label">Random:</span>
+                    <button class="energy-btn minus" onclick="adjustEnergy(this.parentElement, -1)">-</button>
+                    <span class="energy-count">0</span>
+                    <button class="energy-btn plus" onclick="adjustEnergy(this.parentElement, 1)">+</button>
+                    <div class="energy-squares"></div>
+                </div>
+            </div>
+            <div class="energy-modal-footer">
+                <button class="done-btn" onclick="closeEnergySelector()">Done</button>
+            </div>
+        </div>
+    </div>
+
+
+    <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.js"></script>
+    <script src="script.js"></script>
+    <footer class="footer">
+        <p>Created By Lily#alive | <a href="https://na-helper.vercel.app/">NA Helper Project</a></p>
+    </footer>
+</body>
+</html> 
