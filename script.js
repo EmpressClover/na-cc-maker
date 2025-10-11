@@ -207,7 +207,7 @@ function adjustEnergy(energyTypeElement, change) {
     }
     
     if (!isLoading) {
-        document.title = '* Interactive Character Skills Manager';
+        document.title = '* Naruto-Arena Character Creator [BETA]';
     }
 }
 
@@ -287,7 +287,7 @@ function handleImageUpload(event, fileInput) {
                 modal.remove();
             }, 1000);
             
-            document.title = '* Interactive Character Skills Manager';
+            document.title = '* Naruto-Arena Character Creator [BETA]';
         } else {
             throw new Error(data.data?.error || 'Upload failed');
         }
@@ -320,7 +320,7 @@ function handleUrlInput(button) {
         };
         testImg.onload = function() {
             modal.remove();
-            document.title = '* Interactive Character Skills Manager';
+            document.title = '* Naruto-Arena Character Creator [BETA]';
         };
         testImg.src = newUrl;
     } else {
@@ -626,21 +626,62 @@ document.addEventListener('keydown', (e) => {
 });
 
 document.addEventListener('DOMContentLoaded', () => {
-    const editableElements = document.querySelectorAll('[contenteditable="true"]');
-    editableElements.forEach(element => {
-        element.addEventListener('input', () => {
-            document.title = '* Interactive Character Skills Manager';
+    function insertPlainTextAtCursor(text) {
+        const sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0) return;
+        sel.deleteFromDocument();
+        const range = sel.getRangeAt(0);
+        const node = document.createTextNode(text);
+        range.insertNode(node);
+        // Move caret to the end of inserted text
+        range.setStartAfter(node);
+        range.setEndAfter(node);
+        sel.removeAllRanges();
+        sel.addRange(range);
+    }
+
+    function attachEditableHandlers(root = document) {
+        const editableElements = root.querySelectorAll('[contenteditable="true"]');
+        editableElements.forEach(element => {
+            // Mark processed to avoid duplicate listeners
+            if (element.__plainPasteBound) return;
+            element.__plainPasteBound = true;
+
+            element.addEventListener('input', () => {
+                document.title = '* Naruto-Arena Character Creator [BETA]';
+            });
+
+            element.addEventListener('paste', (e) => {
+                // Force paste as plain text (strip formatting/attributes)
+                e.preventDefault();
+                const text = (e.clipboardData || window.clipboardData).getData('text') || '';
+                insertPlainTextAtCursor(text);
+            });
         });
-    });
-    
+    }
+
+    // Initial bind
+    attachEditableHandlers();
+
     // Initialize drag and drop functionality
     initDragAndDrop();
-    
-    // Reinitialize drag and drop when new skills are added
-    const observer = new MutationObserver(() => {
-        initDragAndDrop();
+
+    // Reinitialize when DOM mutates (e.g., skills added) to bind new editables and DnD
+    const observer = new MutationObserver((mutations) => {
+        let shouldRefreshDnD = false;
+        mutations.forEach(m => {
+            m.addedNodes && m.addedNodes.forEach(node => {
+                if (node.nodeType === 1) {
+                    attachEditableHandlers(node);
+                    if (node.classList && node.classList.contains('charskill')) {
+                        shouldRefreshDnD = true;
+                    }
+                }
+            });
+        });
+        if (shouldRefreshDnD) initDragAndDrop();
     });
-    
+
     observer.observe(document.querySelector('.character-container'), {
         childList: true,
         subtree: true
@@ -702,7 +743,7 @@ function addNewSkill(isLoading = false) {
     }
 
     if (!isLoading) {
-        document.title = '* Interactive Character Skills Manager';
+        document.title = '* Naruto-Arena Character Creator [BETA]';
     }
     initDragAndDrop();
 }
@@ -720,7 +761,7 @@ function removeSkill(button) {
     rebalanceSkillLayout();
     
     if (!isLoading) {
-        document.title = '* Interactive Character Skills Manager';
+        document.title = '* Naruto-Arena Character Creator [BETA]';
     }
 }
 
