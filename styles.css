@@ -1055,6 +1055,7 @@ img.pre {
   font-family: 'Trebuchet MS', Arial, sans-serif;
   line-height: 1.4;
   position: relative;
+  padding-right: 55px;
 }
 
 .skill-note::before {
@@ -1064,10 +1065,14 @@ img.pre {
   color: #000000;
 }
 
+.skill-note-content {
+  display: block;
+  min-height: 14px;
+}
+
 #add-skill-note-btn {
     font-size: 12px !important;
 }
-
 .cropper-modal {
     position: fixed;
     top: 0;
@@ -1108,4 +1113,19 @@ img.pre {
     display: flex;
     justify-content: center;
     gap: 10px;
+}
+
+.skill-note-delete {
+    font-family: 'Trebuchet MS', Arial, sans-serif;
+    font-size: 11px;
+    background-color: #0066cc;
+    color: white;
+    border: 1px solid #00000000;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    position: absolute;
+    top: 0;
+    right: 0;
+    padding: 2px 6px;
+    line-height: 1.2;
 }

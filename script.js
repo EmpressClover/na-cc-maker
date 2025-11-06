@@ -1,4 +1,4 @@
-
+﻿
 let draggedSkill = null;
 let lastDeletedSkill = null;
 let lastDeletedSkillIndex = null;
@@ -440,7 +440,7 @@ function launchCropper(imgSrc, parentModal) {
     cropperModal.className = 'cropper-modal';
     cropperModal.innerHTML = `
         <div class="cropper-content">
-            <h3>Crop Image (75×75)</h3>
+            <h3>Crop Image (75Ã—75)</h3>
             <div class="crop-area"><canvas id="cropCanvas" width="300" height="300"></canvas></div>
             <input type="range" id="zoomSlider" min="0.5" max="3" step="0.1" value="1" style="width:80%">
             <div class="cropper-controls">
@@ -532,7 +532,7 @@ cropperModal.querySelector('#confirmCrop').onclick = async () => {
 
         if (data.success && data.data.link) {
             parentModal.targetImageElement.src = data.data.link;
-            status.innerHTML = '<div class="upload-success">✓ Upload successful!</div>';
+            status.innerHTML = '<div class="upload-success">âœ“ Upload successful!</div>';
             setTimeout(() => {
                 cropperModal.remove();
                 parentModal.remove();
@@ -604,6 +604,18 @@ function getCurrentData() {
     const skillElements = document.querySelectorAll('.charskill');
     const skills = [];
 
+    function collectSkillNotesFromRoot(root, collector) {
+        if (!root) return;
+        root.querySelectorAll('.skill-note').forEach(noteElement => {
+            const contentElement = noteElement.querySelector('.skill-note-content');
+            const noteContent = getEditableContent(contentElement);
+            collector.push({
+                text: noteContent.text,
+                html: noteContent.html
+            });
+        });
+    }
+
     skillElements.forEach(skillElement => {
         if (skillElement.classList.contains('empty-skill')) {
             return;
@@ -635,6 +647,16 @@ function getCurrentData() {
             classes: classesContent.text,
             classesHtml: classesContent.html
         };
+
+        const skillNotes = [];
+        collectSkillNotesFromRoot(skillElement, skillNotes);
+        let sibling = skillElement.nextElementSibling;
+        while (sibling && !sibling.classList.contains('charskill') && !sibling.classList.contains('add-skill-container')) {
+            collectSkillNotesFromRoot(sibling, skillNotes);
+            sibling = sibling.nextElementSibling;
+        }
+
+        skill.skillNotes = skillNotes;
         skills.push(skill);
     });
 
@@ -659,6 +681,50 @@ function applyEditableContent(element, htmlValue, textValue) {
     } else {
         element.textContent = '';
     }
+}
+
+function insertSkillNotesAfterSkill(skillElement, noteDataArray) {
+    if (!skillElement || !Array.isArray(noteDataArray) || noteDataArray.length === 0) {
+        return;
+    }
+
+    // Find where to insert notes inside the skill
+    let insertionPoint = skillElement.querySelector('.skilldescr');
+    if (!insertionPoint) insertionPoint = skillElement.lastElementChild || skillElement;
+
+    noteDataArray.forEach((note, index) => {
+        // Add dotted divider before the first note
+        if (index === 0) {
+            const dots = document.createElement('div');
+            dots.className = 'dots';
+            insertionPoint.insertAdjacentElement('afterend', dots);
+            insertionPoint = dots;
+        }
+
+        const noteElement = document.createElement('div');
+        noteElement.className = 'skill-note';
+
+        const deleteButton = document.createElement('button');
+        deleteButton.className = 'skill-note-delete';
+        deleteButton.type = 'button';
+        deleteButton.textContent = 'Delete';
+        deleteButton.setAttribute('contenteditable', 'false');
+        deleteButton.addEventListener('click', () => noteElement.remove());
+
+        const content = document.createElement('div');
+        content.className = 'skill-note-content';
+        content.contentEditable = 'true';
+        const htmlValue = (note && note.html !== undefined && note.html !== null)
+            ? note.html
+            : (note && note.text) || '&nbsp;';
+        content.innerHTML = htmlValue || '&nbsp;';
+
+        noteElement.appendChild(deleteButton);
+        noteElement.appendChild(content);
+
+        insertionPoint.insertAdjacentElement('afterend', noteElement);
+        insertionPoint = noteElement;
+    });
 }
 
 function loadDataIntoPage(data) {
@@ -703,8 +769,9 @@ function loadDataIntoPage(data) {
 
         const skillImage = (skill && skill.image) ? skill.image : 'https://i.imgur.com/placeholder.png';
 
-        const skillHTML = `
-            <div class="charskill">
+        const skillElement = document.createElement('div');
+        skillElement.className = 'charskill';
+        skillElement.innerHTML = `
                 &nbsp;Skill: 
                 <h2 class="skill-name" contenteditable="true">${skillNameHtml}</h2>
                 <button class="remove-skill-btn" onclick="removeSkill(this)" title="Remove this skill">&times;</button>
@@ -721,16 +788,19 @@ function loadDataIntoPage(data) {
                 </div>
                 <div class="fright">
                     <u class="font-fix energy-required-link" onclick="openEnergySelector(this)">Chakra required:</u> 
-                    <div class="energy-display">
-                    </div>
+                    <div class="energy-display"></div>
                 </div>
                 <div class="clear"></div>
                 <div class="pageinfo fleft">
                     &nbsp;Classes: <span class="skill-classes" contenteditable="true">${skillClassesHtml}</span>.
-                </div>
-            </div>`;
+                </div>`;
         
-        addSkillContainer.insertAdjacentHTML('beforebegin', skillHTML);
+        addSkillContainer.insertAdjacentElement('beforebegin', skillElement);
+
+        const insertedSkill = skillElement;
+        if (insertedSkill && Array.isArray(skill.skillNotes) && skill.skillNotes.length > 0) {
+            insertSkillNotesAfterSkill(insertedSkill, skill.skillNotes);
+        }
         
         if (index % 2 === 1) {
             const clearDiv = document.createElement('div');
@@ -816,6 +886,12 @@ function exportData() {
                 energy: energyArray,
                 classes: classesArray,
                 classesHtml: skill.classesHtml,
+                skillNotes: (Array.isArray(skill.skillNotes) ? skill.skillNotes : []).map(note => ({
+                    text: (note && typeof note.text === 'string') ? note.text : '',
+                    html: (note && note.html !== undefined && note.html !== null)
+                        ? note.html
+                        : ((note && typeof note.text === 'string') ? note.text : '')
+                })),
                 cooldown: skill.cooldown === "None" ? 0 : parseInt(skill.cooldown) || 0,
                 cooldownHtml: skill.cooldownHtml,
                 url: skill.image
@@ -901,6 +977,13 @@ function convertNewFormatToInternal(newFormatData) {
             const nameHtml = skill && skill.nameHtml !== undefined && skill.nameHtml !== null ? skill.nameHtml : (skill && skill.name) || '';
             const descriptionText = skill && skill.description ? skill.description : '';
             const descriptionHtml = skill && skill.descriptionHtml !== undefined && skill.descriptionHtml !== null ? skill.descriptionHtml : descriptionText;
+            const skillNotes = Array.isArray(skill && skill.skillNotes)
+                ? skill.skillNotes.map(note => {
+                    const text = (note && typeof note.text === 'string') ? note.text : '';
+                    const html = (note && note.html !== undefined && note.html !== null) ? note.html : text;
+                    return { text, html };
+                })
+                : [];
             
             return {
                 name: skill ? skill.name || '' : '',
@@ -912,7 +995,8 @@ function convertNewFormatToInternal(newFormatData) {
                 cooldownHtml,
                 energy: energyObj,
                 classes: classesString,
-                classesHtml
+                classesHtml,
+                skillNotes
             };
         })
     };
@@ -1188,6 +1272,13 @@ async function loadCharacterImage(triggerButton) {
         btn.style.display = 'none';
     });
 
+    const skillNoteDeleteButtons = characterContainer ? characterContainer.querySelectorAll('.skill-note-delete') : [];
+    const originalSkillNoteDeleteDisplays = [];
+    skillNoteDeleteButtons.forEach((btn, index) => {
+        originalSkillNoteDeleteDisplays[index] = btn.style.display;
+        btn.style.display = 'none';
+    });
+
     const emptySkillSlots = characterContainer ? characterContainer.querySelectorAll('.charskill.empty-skill') : [];
     const originalEmptySkillDisplays = [];
     emptySkillSlots.forEach((slot, i) => {
@@ -1324,6 +1415,10 @@ async function loadCharacterImage(triggerButton) {
 
         removeButtons.forEach((btn, index) => {
             btn.style.display = originalRemoveButtonDisplays[index];
+        });
+
+        skillNoteDeleteButtons.forEach((btn, index) => {
+            btn.style.display = originalSkillNoteDeleteDisplays[index];
         });
 
         emptySkillSlots.forEach((slot, i) => {
@@ -1758,18 +1853,98 @@ function initializeTextToolbar() {
     });
   }
 
+  function onSkillNoteDeleteClick(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const note = e.currentTarget.closest(".skill-note");
+    if (!note) return;
+
+    const wasActive = activeEditor && note.contains(activeEditor);
+    const dots = note.previousElementSibling;
+    if (dots && dots.classList && dots.classList.contains("dots")) {
+      dots.remove();
+    }
+
+    note.remove();
+
+    if (wasActive) {
+      activeEditor = null;
+      toolbar.style.display = "none";
+    }
+
+    document.title = "* Naruto-Arena Character Creator [BETA]";
+  }
+
+  function ensureSkillNoteStructure(noteElement) {
+    if (!noteElement) return null;
+
+    let content = noteElement.querySelector(".skill-note-content");
+    if (!content) {
+      const existingHtml = noteElement.innerHTML && noteElement.innerHTML.trim()
+        ? noteElement.innerHTML
+        : "&nbsp;";
+
+      noteElement.innerHTML = "";
+
+      const deleteButton = document.createElement("button");
+      deleteButton.className = "skill-note-delete";
+      deleteButton.type = "button";
+      deleteButton.textContent = "Delete";
+      deleteButton.setAttribute("contenteditable", "false");
+
+      content = document.createElement("div");
+      content.className = "skill-note-content";
+      content.contentEditable = "true";
+      content.innerHTML = existingHtml;
+
+      noteElement.appendChild(deleteButton);
+      noteElement.appendChild(content);
+    } else {
+      content.contentEditable = "true";
+      if (!content.innerHTML.trim()) {
+        content.innerHTML = "&nbsp;";
+      }
+    }
+
+    const deleteBtn = noteElement.querySelector(".skill-note-delete");
+    if (deleteBtn && !deleteBtn.__skillNoteDeleteBound) {
+      deleteBtn.__skillNoteDeleteBound = true;
+      deleteBtn.addEventListener("click", onSkillNoteDeleteClick);
+      deleteBtn.setAttribute("contenteditable", "false");
+    }
+
+    bindEditable(content);
+    return content;
+  }
+
+  function initializeSkillNotesWithin(root) {
+    if (!root) return;
+
+    if (root.nodeType === 1) {
+      if (root.classList.contains("skill-note")) {
+        ensureSkillNoteStructure(root);
+      }
+      root.querySelectorAll(".skill-note").forEach(ensureSkillNoteStructure);
+    } else {
+      document.querySelectorAll(".skill-note").forEach(ensureSkillNoteStructure);
+    }
+  }
   function refreshBindings() {
     document.querySelectorAll('[contenteditable="true"]').forEach(bindEditable);
   }
 
+  initializeSkillNotesWithin(document);
   refreshBindings();
 
   const observer = new MutationObserver(mutations => {
     let found = false;
     for (const m of mutations) {
       for (const node of m.addedNodes) {
-        if (node.nodeType === 1 && (node.matches('[contenteditable="true"]') || node.querySelector('[contenteditable="true"]'))) {
-          found = true;
+        if (node.nodeType === 1) {
+          initializeSkillNotesWithin(node);
+          if (node.matches('[contenteditable="true"]') || node.querySelector('[contenteditable="true"]')) {
+            found = true;
+          }
         }
       }
     }
@@ -1860,37 +2035,42 @@ bgColorPicker.addEventListener("input", (e) => {
 
     const skillNote = document.createElement("div");
     skillNote.className = "skill-note";
-    skillNote.contentEditable = "true";
     skillNote.innerHTML = "New note...";
+
+    const noteContent = ensureSkillNoteStructure(skillNote);
 
     const parent = activeEditor.closest(".charskill, .pagedescription, .font-fix");
     if (parent && parent.parentNode) {
       parent.parentNode.insertBefore(dots, parent.nextSibling);
       dots.after(skillNote);
-      bindEditable(skillNote);
-      skillNote.focus();
     } else {
       activeEditor.insertAdjacentElement("afterend", dots);
       dots.after(skillNote);
-      bindEditable(skillNote);
-      skillNote.focus();
     }
+
+    if (noteContent) {
+      noteContent.focus();
+    }
+    document.title = "* Naruto-Arena Character Creator [BETA]";
   });
 
   document.addEventListener("keydown", e => {
-    if (e.target.classList.contains("skill-note") && e.key === "Enter") {
+    if (e.target.classList.contains("skill-note-content") && e.key === "Enter") {
       e.preventDefault();
       const newNote = document.createElement("div");
       newNote.className = "skill-note";
-      newNote.contentEditable = "true";
-      newNote.innerHTML = " ";
-      e.target.insertAdjacentElement("afterend", newNote);
-      bindEditable(newNote);
-      newNote.focus();
+      newNote.innerHTML = "&nbsp;";
+      const noteContent = ensureSkillNoteStructure(newNote);
+      const currentNote = e.target.closest(".skill-note");
+      if (currentNote) {
+        currentNote.insertAdjacentElement("afterend", newNote);
+      }
+      if (noteContent) {
+        noteContent.focus();
+      }
       document.title = "* Naruto-Arena Character Creator [BETA]";
     }
   });
-
   window.addEventListener("scroll", () => activeEditor && positionToolbar(activeEditor));
   window.addEventListener("resize", () => activeEditor && positionToolbar(activeEditor));
 
@@ -1904,3 +2084,4 @@ bgColorPicker.addEventListener("input", (e) => {
 }
 
 document.addEventListener("DOMContentLoaded", initializeTextToolbar);
+
