@@ -492,6 +492,17 @@ img.pre {
     background-color: #003d7a;
 }
 
+.controls select {
+    font-family: 'Trebuchet MS', Arial, sans-serif;
+    font-size: 11px;
+    padding: 8px 12px;
+    border: 1px solid #0066cc;
+    background-color: #fff;
+    color: #003d7a;
+    min-width: 180px;
+    cursor: pointer;
+}
+
 .image-upload-modal {
     display: block;
     position: fixed;

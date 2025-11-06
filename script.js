@@ -127,46 +127,155 @@ function initDragAndDrop() {
     });
 }
 
-const defaultData = {
-    characterName: "Haruno Sakura",
-    characterDescription: "A Genin from Team 7, Sakura is very intelligent, but self-conscious about herself. Having just recently received training from Tsunade, Sakura is now able to deliver powerful punches and heal her own allies.",
-    characterPortrait: "https://i.imgur.com/TWShCf2.png",
-    unlockRequirement: "No requirements",
-    skills: [
-        {
-            name: "KO Punch",
-            description: "Sakura punches one enemy with all her strength, dealing 20 damage to them and stunning their physical and mental skills for 1 turn. During 'Inner Sakura', this skill will deal 10 additional damage.",
-            image: "https://i.imgur.com/x0Yqker.png",
-            cooldown: "None",
-            energy: { taijutsu: 1, bloodline: 0, ninjutsu: 0, genjutsu: 0, random: 0 },
-            classes: "Physical, Melee, Instant"
-        },
-        {
-            name: "Cure",
-            description: "Using basic healing techniques, Sakura heals herself or an ally for 25 health.",
-            image: "https://i.imgur.com/M2O5AdG.png",
-            cooldown: "None",
-            energy: { taijutsu: 0, bloodline: 0, ninjutsu: 1, genjutsu: 0, random: 0 },
-            classes: "Chakra, Instant"
-        },
-        {
-            name: "Inner Sakura",
-            description: "Sakura's inner self surfaces and urges her on. For 4 turns, Sakura will gain 10 points of damage reduction. During this time, Sakura will ignore non-damage effects and 'KO Punch' will deal 10 additional damage.",
-            image: "https://i.imgur.com/03BjSkn.jpg",
-            cooldown: "4",
-            energy: { taijutsu: 0, bloodline: 0, ninjutsu: 2, genjutsu: 0, random: 0 },
-            classes: "Mental, Instant, Unique"
-        },
-        {
-            name: "Sakura Replacement Technique",
-            description: "This skill makes Haruno Sakura invulnerable for 1 turn.",
-            image: "https://i.imgur.com/hGOwcqv.png",
-            cooldown: "4",
-            energy: { taijutsu: 0, bloodline: 0, ninjutsu: 0, genjutsu: 0, random: 1},
-            classes: "Chakra, Instant"
+const DEFAULT_CHARACTERS_PATH = 'default characters';
+let defaultCharacters = [];
+let selectedDefaultCharacterIndex = null;
+let fallbackDefaultCharacter = null;
+
+async function initializeDefaultCharacterSelection() {
+    const selectElement = document.getElementById('default-character-select');
+    if (!selectElement) {
+        return;
+    }
+
+    if (!selectElement.dataset.selectionBound) {
+        selectElement.addEventListener('change', handleDefaultCharacterSelectionChange);
+        selectElement.dataset.selectionBound = 'true';
+    }
+
+    try {
+        const response = await fetch(DEFAULT_CHARACTERS_PATH);
+        if (!response.ok) {
+            throw new Error(`Failed to load default characters (${response.status})`);
         }
-    ]
-};
+
+        const characters = await response.json();
+        if (!Array.isArray(characters)) {
+            throw new Error('Default characters file does not contain a JSON array.');
+        }
+
+        defaultCharacters = characters;
+        selectElement.disabled = false;
+
+        if (defaultCharacters.length === 0) {
+            selectElement.innerHTML = '<option value="">No default characters found</option>';
+            selectElement.disabled = true;
+            fallbackDefaultCharacter = JSON.parse(JSON.stringify(getCurrentData()));
+            return;
+        }
+
+        fallbackDefaultCharacter = getNormalizedDefaultCharacter(defaultCharacters[0]);
+        populateDefaultCharacterSelect(selectElement, defaultCharacters);
+    } catch (error) {
+        console.error('Unable to load default characters:', error);
+        selectElement.innerHTML = '<option value="">Default characters unavailable</option>';
+        selectElement.disabled = true;
+        fallbackDefaultCharacter = JSON.parse(JSON.stringify(getCurrentData()));
+    }
+}
+
+function populateDefaultCharacterSelect(selectElement, characters) {
+    selectElement.innerHTML = '<option value="">Select default character...</option>';
+    characters.forEach((character, index) => {
+        const option = document.createElement('option');
+        option.value = index;
+        option.textContent = character && character.characterName
+            ? character.characterName
+            : `Character ${index + 1}`;
+        selectElement.appendChild(option);
+    });
+
+    if (selectedDefaultCharacterIndex !== null && characters[selectedDefaultCharacterIndex]) {
+        selectElement.value = String(selectedDefaultCharacterIndex);
+    }
+}
+
+function normalizeEnergy(energy) {
+    const safeEnergy = energy && typeof energy === 'object' ? energy : {};
+    return {
+        taijutsu: Number(safeEnergy.taijutsu) || 0,
+        bloodline: Number(safeEnergy.bloodline) || 0,
+        ninjutsu: Number(safeEnergy.ninjutsu) || 0,
+        genjutsu: Number(safeEnergy.genjutsu) || 0,
+        random: Number(safeEnergy.random) || 0
+    };
+}
+
+function getNormalizedDefaultCharacter(character) {
+    if (!character) {
+        return null;
+    }
+
+    const normalized = JSON.parse(JSON.stringify(character));
+
+    normalized.characterName = normalized.characterName || '';
+    normalized.characterDescription = normalized.characterDescription || '';
+    normalized.characterPortrait = normalized.characterPortrait || '';
+    normalized.unlockRequirement = normalized.unlockRequirement || 'No requirements';
+
+    normalized.skills = (normalized.skills || []).map(skill => {
+        const result = Object.assign({}, skill);
+        result.name = result.name || '';
+        result.description = result.description || '';
+        result.image = result.image || '';
+        result.cooldown = result.cooldown || '';
+        result.classes = result.classes || '';
+        result.energy = normalizeEnergy(result.energy);
+        return result;
+    });
+
+    return normalized;
+}
+
+function handleDefaultCharacterSelectionChange() {
+    loadSelectedDefaultCharacter();
+}
+
+function loadSelectedDefaultCharacter() {
+    const selectElement = document.getElementById('default-character-select');
+    if (!selectElement) {
+        return;
+    }
+
+    const rawIndex = selectElement.value;
+    if (rawIndex === '') {
+        return;
+    }
+
+    const index = parseInt(rawIndex, 10);
+    if (!Number.isInteger(index) || !defaultCharacters[index]) {
+        return;
+    }
+
+    if (!confirm('Load the selected default character? This will replace your current changes.')) {
+        selectElement.value = selectedDefaultCharacterIndex !== null
+            ? String(selectedDefaultCharacterIndex)
+            : '';
+        return;
+    }
+
+    const data = getNormalizedDefaultCharacter(defaultCharacters[index]);
+    if (data) {
+        loadDataIntoPage(data);
+        selectedDefaultCharacterIndex = index;
+    }
+}
+
+function getDefaultCharacterForReset() {
+    if (selectedDefaultCharacterIndex !== null && defaultCharacters[selectedDefaultCharacterIndex]) {
+        return getNormalizedDefaultCharacter(defaultCharacters[selectedDefaultCharacterIndex]);
+    }
+
+    if (defaultCharacters.length > 0) {
+        return getNormalizedDefaultCharacter(defaultCharacters[0]);
+    }
+
+    if (fallbackDefaultCharacter) {
+        return JSON.parse(JSON.stringify(fallbackDefaultCharacter));
+    }
+
+    return null;
+}
 
 let currentSkillElement = null;
 
@@ -811,8 +920,13 @@ function convertNewFormatToInternal(newFormatData) {
 
 function resetToDefault() {
     if (confirm('Are you sure you want to reset to default character data? This will lose all current changes.')) {
-        loadDataIntoPage(defaultData);
-        alert('Character reset to default!');
+        const defaultCharacter = getDefaultCharacterForReset();
+        if (defaultCharacter) {
+            loadDataIntoPage(defaultCharacter);
+            alert('Character reset to default!');
+        } else {
+            alert('No default character data available.');
+        }
     }
 }
 
@@ -822,6 +936,8 @@ setInterval(() => {
 }, 30000);
 
 window.addEventListener('load', () => {
+    initializeDefaultCharacterSelection();
+
     const savedData = localStorage.getItem('characterData');
     const autoSaveData = localStorage.getItem('characterData_autosave');
     

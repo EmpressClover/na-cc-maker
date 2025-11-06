@@ -25,6 +25,9 @@
         <input type="file" id="importFile" accept=".json" onchange="importData()" style="display: none;">
         <button onclick="document.getElementById('importFile').click()">Import JSON</button>
         <button onclick="resetToDefault()">Reset to Default</button>
+        <select id="default-character-select" aria-label="Select default character">
+            <option value="">Loading default characters...</option>
+        </select>
         <button onclick="loadCharacterImage(this)">Generate Character Image</button>
     </div><br><br>
 
