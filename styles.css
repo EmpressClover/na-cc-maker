@@ -105,8 +105,9 @@ img[onclick]:hover {
 .energy-display {
     display: inline-flex;
     gap: 1px;
-    margin-left: 3px;
     align-items: center;
+    top: 1px;
+    position: relative;
 }
 
 .energy-square {
@@ -333,6 +334,34 @@ img.pre {
     float: left;
     cursor: move;
     transition: all 0.2s ease;
+}
+.charskill.empty-skill {
+    cursor: default;
+    border: 1px dashed #b0c4de;
+    min-height: 180px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f8fbff;
+}
+
+.empty-skill-placeholder {
+    text-align: center;
+    color: #4d6273;
+    font-family: 'Trebuchet MS', arial, verdana, sans-serif;
+    line-height: 1.4;
+}
+
+.empty-skill-title {
+    display: block;
+    font-size: 14px;
+    margin-bottom: 6px;
+    color: #0066cc;
+}
+
+.empty-skill-instructions {
+    font-size: 12px;
+    display: block;
 }
 
 
@@ -926,3 +955,146 @@ img.pre {
     outline: none;
     box-shadow: 0 0 3px rgba(0, 102, 204, 0.5);
 } 
+
+.undo-btn {
+        background-color: #003d7a;
+}
+
+.undo-btn, .dismiss-btn, .confirm-btn, .cancel-btn {
+  background-color: #003d7a;
+  border: 1px solid transparent;
+  box-shadow: rgba(255, 255, 255, .4) 0 1px 0 0 inset;
+  box-sizing: border-box;
+  color: #fff;
+  cursor: pointer;
+  display: inline-block;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.15385;
+  margin: 0;
+  outline: none;
+  padding: 8px .8em;
+  position: relative;
+  text-align: center;
+  text-decoration: none;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  vertical-align: baseline;
+  white-space: nowrap;
+}
+
+.confirm-btn:hover {
+    background-color: #666666;
+}
+
+#text-toolbar {
+  position: absolute;
+  background: #fff;
+  border: 1px solid #ccc;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  padding: 6px 10px;
+  display: none;
+  z-index: 3000;
+  transition: opacity 0.2s ease, transform 0.1s ease;
+  align-items: center;
+}
+
+#text-toolbar button {
+  background: none;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+  font-size: 14px;
+  margin: 0 4px;
+  padding: 4px 6px;
+  border-radius: 3px;
+  transition: background-color 0.2s, transform 0.1s;
+}
+
+#text-toolbar button:hover {
+  background-color: #e6f3ff;
+}
+
+#text-toolbar button:active {
+  background-color: #cde6ff;
+  transform: scale(0.95);
+}
+
+
+#text-color-picker,
+#bg-color-picker {
+  width: 28px;
+  height: 22px;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  background: none;
+}
+
+/* Highlighted background text styling (extra padding) */
+.highlighted-text {
+  padding: 0 3px;
+}
+
+.skill-note {
+  margin: 6px 0 8px 25px;
+  font-size: 11px;
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+  line-height: 1.4;
+  position: relative;
+}
+
+.skill-note::before {
+  content: "•";
+  position: absolute;
+  left: -20px;
+  color: #000000;
+}
+
+#add-skill-note-btn {
+    font-size: 12px !important;
+}
+
+.cropper-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.65);
+    z-index: 2000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.cropper-content {
+    background: #fff;
+    padding: 20px;
+    border: 1px solid #000;
+    text-align: center;
+    font-family: 'Trebuchet MS', Arial, sans-serif;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+    max-width: 400px;
+    width: 90%;
+}
+
+.crop-area {
+    position: relative;
+    margin: 10px auto;
+    border: 1px solid #ccc;
+    overflow: hidden;
+    width: 300px;
+    height: 300px;
+    cursor: move;
+    background: #f9f9f9;
+}
+
+.cropper-controls {
+    margin-top: 15px;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+}

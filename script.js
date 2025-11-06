@@ -1,5 +1,7 @@
 
 let draggedSkill = null;
+let lastDeletedSkill = null;
+let lastDeletedSkillIndex = null;
 
 function handleDragStart(e) {
     draggedSkill = this;
@@ -30,12 +32,25 @@ function handleDrop(e) {
     }
     
     if (draggedSkill !== this) {
+        const targetWasEmpty = this.classList.contains('empty-skill');
+        const draggedWasEmpty = draggedSkill.classList.contains('empty-skill');
+
         const draggedHTML = draggedSkill.innerHTML;
         draggedSkill.innerHTML = this.innerHTML;
         this.innerHTML = draggedHTML;
+
+        if (targetWasEmpty && !draggedWasEmpty) {
+            this.classList.remove('empty-skill');
+            draggedSkill.classList.add('empty-skill');
+        } else if (!targetWasEmpty && draggedWasEmpty) {
+            this.classList.add('empty-skill');
+            draggedSkill.classList.remove('empty-skill');
+        }
         
         setupDragEvents(draggedSkill);
         setupDragEvents(this);
+
+        rebalanceSkillLayout();
         
         document.title = 'Naruto-Arena Character Creator [BETA]';
     }
@@ -52,7 +67,16 @@ function handleDragEnd(e) {
 }
 
 function setupDragEvents(element) {
-    element.setAttribute('draggable', 'true');
+    const isEmpty = element.classList.contains('empty-skill');
+    element.setAttribute('draggable', isEmpty ? 'false' : 'true');
+
+    element.removeEventListener('dragstart', handleDragStart, false);
+    element.removeEventListener('dragenter', handleDragEnter, false);
+    element.removeEventListener('dragover', handleDragOver, false);
+    element.removeEventListener('dragleave', handleDragLeave, false);
+    element.removeEventListener('drop', handleDrop, false);
+    element.removeEventListener('dragend', handleDragEnd, false);
+
     element.addEventListener('dragstart', handleDragStart, false);
     element.addEventListener('dragenter', handleDragEnter, false);
     element.addEventListener('dragover', handleDragOver, false);
@@ -102,7 +126,7 @@ const defaultData = {
             description: "This skill makes Haruno Sakura invulnerable for 1 turn.",
             image: "https://i.imgur.com/hGOwcqv.png",
             cooldown: "4",
-            energy: { taijutsu: 0, bloodline: 0, ninjutsu: 2, genjutsu: 0, random: 0 },
+            energy: { taijutsu: 0, bloodline: 0, ninjutsu: 0, genjutsu: 0, random: 1},
             classes: "Chakra, Instant"
         }
     ]
@@ -222,8 +246,8 @@ function changeImage(imgElement) {
             </div>
             <div class="image-upload-body">
                 <div class="upload-option">
-                    <h4>Upload to Imgur (Anonymous):</h4>
-                    <input type="file" accept="image/*" class="file-input" onchange="handleImageUpload(event, this)">
+                    <h4>Upload Image:</h4>
+                    <input type="file" accept="image/*" class="file-input" onchange="openCropperModal(event, this)">
                     <button onclick="this.previousElementSibling.click()" class="upload-btn">Choose File</button>
                     <div class="upload-status"></div>
                 </div>
@@ -231,13 +255,7 @@ function changeImage(imgElement) {
                 <div class="upload-option">
                     <h4>Enter Image URL:</h4>
                     <input type="text" placeholder="https://example.com/image.jpg" class="url-input" value="${imgElement.src}">
-                    <button onclick="handleUrlInput(this)" class="url-btn">Use URL</button>
-                </div>
-                <div class="upload-divider">OR</div>
-                <div class="upload-option">
-                    <h4>Manual Upload to Image Host:</h4>
-                    <p class="manual-instructions">1. Click button below to open Imgur in new tab<br>2. Upload your image there<br>3. Copy the direct image URL<br>4. Paste it in the URL field above</p>
-                    <button onclick="window.open('https://imgur.com/upload', '_blank')" class="manual-btn">Open Imgur Upload</button>
+                    <button onclick="openCropperModalFromURL(this)" class="url-btn">Use URL</button>
                 </div>
             </div>
             <div class="image-upload-footer">
@@ -246,64 +264,150 @@ function changeImage(imgElement) {
         </div>
     `;
     
-    modal.dataset.targetImage = imgElement.src;
     modal.targetImageElement = imgElement;
-    
     document.body.appendChild(modal);
 }
 
-function handleImageUpload(event, fileInput) {
+function openCropperModal(event, input) {
     const file = event.target.files[0];
-    if (!file || !file.type.startsWith('image/')) {
-        alert('Please select a valid image file.');
-        return;
+    if (!file || !file.type.startsWith('image/')) return alert('Please select a valid image file.');
+
+    const reader = new FileReader();
+    reader.onload = e => launchCropper(e.target.result, input.closest('.image-upload-modal'));
+    reader.readAsDataURL(file);
+}
+
+function openCropperModalFromURL(button) {
+    const urlInput = button.previousElementSibling;
+    const imgUrl = urlInput.value.trim();
+    if (!imgUrl) return alert('Please enter a valid URL.');
+
+    const testImage = new Image();
+    testImage.crossOrigin = 'Anonymous';
+    testImage.onload = () => launchCropper(imgUrl, button.closest('.image-upload-modal'));
+    testImage.onerror = () => alert('Image failed to load. Please check the URL.');
+    testImage.src = imgUrl;
+}
+
+
+function launchCropper(imgSrc, parentModal) {
+    const cropperModal = document.createElement('div');
+    cropperModal.className = 'cropper-modal';
+    cropperModal.innerHTML = `
+        <div class="cropper-content">
+            <h3>Crop Image (75×75)</h3>
+            <div class="crop-area"><canvas id="cropCanvas" width="300" height="300"></canvas></div>
+            <input type="range" id="zoomSlider" min="0.5" max="3" step="0.1" value="1" style="width:80%">
+            <div class="cropper-controls">
+                <button class="cancel-btn" id="cancelCrop">Cancel</button>
+                <button class="confirm-btn" id="confirmCrop">Crop & Upload</button>
+            </div>
+            <div class="upload-status" style="margin-top:10px;"></div>
+        </div>
+    `;
+    document.body.appendChild(cropperModal);
+
+    const canvas = cropperModal.querySelector('#cropCanvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    img.crossOrigin = "Anonymous";
+    img.src = imgSrc;
+
+    let posX = canvas.width / 2,
+        posY = canvas.height / 2,
+        scale = 1,
+        dragging = false,
+        lastX, lastY;
+
+    img.onload = draw;
+
+    const zoomSlider = cropperModal.querySelector('#zoomSlider');
+    zoomSlider.addEventListener('input', e => { scale = parseFloat(e.target.value); draw(); });
+
+    canvas.addEventListener('mousedown', e => { dragging = true; lastX = e.offsetX; lastY = e.offsetY; });
+    canvas.addEventListener('mouseup', () => dragging = false);
+    canvas.addEventListener('mouseout', () => dragging = false);
+    canvas.addEventListener('mousemove', e => {
+        if (!dragging) return;
+        posX += e.offsetX - lastX;
+        posY += e.offsetY - lastY;
+        lastX = e.offsetX;
+        lastY = e.offsetY;
+        draw();
+    });
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.save();
+        ctx.translate(posX, posY);
+        ctx.scale(scale, scale);
+        ctx.drawImage(img, -img.width / 2, -img.height / 2);
+        ctx.restore();
+
+        ctx.strokeStyle = "#0066cc";
+        ctx.lineWidth = 2;
+        ctx.strokeRect((canvas.width - 75) / 2, (canvas.height - 75) / 2, 75, 75);
     }
 
-    const modal = fileInput.closest('.image-upload-modal');
-    const statusDiv = modal.querySelector('.upload-status');
-    const targetImg = modal.targetImageElement;
-    
-    statusDiv.innerHTML = '<div class="upload-progress">Uploading to Imgur...</div>';
-    
+    cropperModal.querySelector('#cancelCrop').onclick = () => cropperModal.remove();
+
+cropperModal.querySelector('#confirmCrop').onclick = async () => {
+    const status = cropperModal.querySelector('.upload-status');
+    status.innerHTML = `<div class="upload-progress">Processing & Uploading...</div>`;
+
+    const outCanvas = document.createElement('canvas');
+    outCanvas.width = 75;
+    outCanvas.height = 75;
+    const outCtx = outCanvas.getContext('2d');
+
+    outCtx.save();
+    const centerOffsetX = posX - canvas.width / 2;
+    const centerOffsetY = posY - canvas.height / 2;
+    outCtx.translate(37.5 + centerOffsetX, 37.5 + centerOffsetY);
+    outCtx.scale(scale, scale);
+    outCtx.drawImage(img, -img.width / 2, -img.height / 2);
+    outCtx.restore();
+
+    const blob = await new Promise(res => outCanvas.toBlob(res, 'image/png'));
+
     const formData = new FormData();
-    formData.append('image', file);
+    formData.append('image', blob);
     formData.append('type', 'file');
-    
-    fetch('https://api.imgur.com/3/image', {
-        method: 'POST',
-        headers: {
-            'Authorization': 'Client-ID 546c25a59c58ad7' 
-        },
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            const imageUrl = data.data.link;
-            targetImg.src = imageUrl;
-            statusDiv.innerHTML = '<div class="upload-success">✓ Upload successful!</div>';
-            
+
+    try {
+        const response = await fetch('https://api.imgur.com/3/image', {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Client-ID 546c25a59c58ad7'
+            },
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.success && data.data.link) {
+            parentModal.targetImageElement.src = data.data.link;
+            status.innerHTML = '<div class="upload-success">✓ Upload successful!</div>';
             setTimeout(() => {
-                modal.remove();
-            }, 1000);
-            
+                cropperModal.remove();
+                parentModal.remove();
+            }, 800);
             document.title = '* Naruto-Arena Character Creator [BETA]';
         } else {
             throw new Error(data.data?.error || 'Upload failed');
         }
-    })
-    .catch(error => {
-        console.error('Upload error:', error);
-        statusDiv.innerHTML = `
+
+    } catch (error) {
+        console.error('Imgur upload error:', error);
+        status.innerHTML = `
             <div class="upload-error">
-                Upload failed. Please try:<br>
-                1. Using the manual upload option below<br>
-                2. Or paste a direct image URL
+                Upload failed. Please try again.<br>
+                (Server returned: ${error.message})
             </div>
         `;
-    });
+    }
+};
 }
-
 
 function handleUrlInput(button) {
     const modal = button.closest('.image-upload-modal');
@@ -330,52 +434,100 @@ function handleUrlInput(button) {
 
 function getCurrentData() {
     function cleanText(text) {
-        return text.replace(/\s+/g, ' ').trim();
+        return (text || '').replace(/\s+/g, ' ').trim();
     }
-    
-    const characterName = cleanText(document.querySelector('.character-name').textContent);
-    const characterDescription = cleanText(document.querySelector('.character-description').textContent);
+
+    function getEditableContent(element) {
+        if (!element) {
+            return { text: '', html: '' };
+        }
+        return {
+            text: cleanText(element.textContent),
+            html: element.innerHTML
+        };
+    }
+
+    const nameElement = document.querySelector('.character-name');
+    const descriptionElement = document.querySelector('.character-description');
+    const requirementElement = document.querySelector('.unlock-requirement');
+
+    const characterNameContent = getEditableContent(nameElement);
+    const characterDescriptionContent = getEditableContent(descriptionElement);
+    const unlockRequirementContent = getEditableContent(requirementElement);
     const characterPortrait = document.querySelector('.character-portrait').src;
-    const unlockRequirement = cleanText(document.querySelector('.unlock-requirement').textContent);
-    
+
     const skillElements = document.querySelectorAll('.charskill');
     const skills = [];
-    
+
     skillElements.forEach(skillElement => {
+        if (skillElement.classList.contains('empty-skill')) {
+            return;
+        }
+
         const energyDisplay = skillElement.querySelector('.energy-display');
         const energy = {
-            taijutsu: energyDisplay.querySelectorAll('.energy-square.taijutsu').length,
-            bloodline: energyDisplay.querySelectorAll('.energy-square.bloodline').length,
-            ninjutsu: energyDisplay.querySelectorAll('.energy-square.ninjutsu').length,
-            genjutsu: energyDisplay.querySelectorAll('.energy-square.genjutsu').length,
-            random: energyDisplay.querySelectorAll('.energy-square.random').length
+            taijutsu: energyDisplay ? energyDisplay.querySelectorAll('.energy-square.taijutsu').length : 0,
+            bloodline: energyDisplay ? energyDisplay.querySelectorAll('.energy-square.bloodline').length : 0,
+            ninjutsu: energyDisplay ? energyDisplay.querySelectorAll('.energy-square.ninjutsu').length : 0,
+            genjutsu: energyDisplay ? energyDisplay.querySelectorAll('.energy-square.genjutsu').length : 0,
+            random: energyDisplay ? energyDisplay.querySelectorAll('.energy-square.random').length : 0
         };
-        
+
+        const nameContent = getEditableContent(skillElement.querySelector('.skill-name'));
+        const descriptionContent = getEditableContent(skillElement.querySelector('.skill-description'));
+        const cooldownContent = getEditableContent(skillElement.querySelector('.cooldown'));
+        const classesContent = getEditableContent(skillElement.querySelector('.skill-classes'));
+
         const skill = {
-            name: cleanText(skillElement.querySelector('.skill-name').textContent),
-            description: cleanText(skillElement.querySelector('.skill-description').textContent),
+            name: nameContent.text,
+            nameHtml: nameContent.html,
+            description: descriptionContent.text,
+            descriptionHtml: descriptionContent.html,
             image: skillElement.querySelector('.skill-image').src,
-            cooldown: cleanText(skillElement.querySelector('.cooldown').textContent),
-            energy: energy,
-            classes: cleanText(skillElement.querySelector('.skill-classes').textContent)
+            cooldown: cooldownContent.text,
+            cooldownHtml: cooldownContent.html,
+            energy,
+            classes: classesContent.text,
+            classesHtml: classesContent.html
         };
         skills.push(skill);
     });
-    
+
     return {
-        characterName,
-        characterDescription,
+        characterName: characterNameContent.text,
+        characterNameHtml: characterNameContent.html,
+        characterDescription: characterDescriptionContent.text,
+        characterDescriptionHtml: characterDescriptionContent.html,
         characterPortrait,
-        unlockRequirement,
+        unlockRequirement: unlockRequirementContent.text,
+        unlockRequirementHtml: unlockRequirementContent.html,
         skills
     };
 }
 
+function applyEditableContent(element, htmlValue, textValue) {
+    if (!element) return;
+    if (htmlValue !== undefined && htmlValue !== null) {
+        element.innerHTML = htmlValue;
+    } else if (textValue !== undefined && textValue !== null) {
+        element.textContent = textValue;
+    } else {
+        element.textContent = '';
+    }
+}
+
 function loadDataIntoPage(data) {
-    document.querySelector('.character-name').textContent = data.characterName;
-    document.querySelector('.character-description').textContent = data.characterDescription;
-    document.querySelector('.character-portrait').src = data.characterPortrait;
-    document.querySelector('.unlock-requirement').textContent = data.unlockRequirement;
+    const nameElement = document.querySelector('.character-name');
+    const descriptionElement = document.querySelector('.character-description');
+    const portraitElement = document.querySelector('.character-portrait');
+    const requirementElement = document.querySelector('.unlock-requirement');
+
+    applyEditableContent(nameElement, data.characterNameHtml, data.characterName);
+    applyEditableContent(descriptionElement, data.characterDescriptionHtml, data.characterDescription);
+    if (portraitElement && data.characterPortrait) {
+        portraitElement.src = data.characterPortrait;
+    }
+    applyEditableContent(requirementElement, data.unlockRequirementHtml, data.unlockRequirement);
     
     const skillsContainer = document.querySelector('.character-container center');
     const addSkillContainer = document.querySelector('.add-skill-container');
@@ -390,22 +542,37 @@ function loadDataIntoPage(data) {
         toRemove.remove();
     }
     
-    data.skills.forEach((skill, index) => {
+    (data.skills || []).forEach((skill, index) => {
+        const skillNameHtml = (skill && skill.nameHtml !== undefined && skill.nameHtml !== null)
+            ? skill.nameHtml
+            : (skill && skill.name) || '';
+        const skillDescriptionHtml = (skill && skill.descriptionHtml !== undefined && skill.descriptionHtml !== null)
+            ? skill.descriptionHtml
+            : (skill && skill.description) || '';
+        const skillCooldownHtml = (skill && skill.cooldownHtml !== undefined && skill.cooldownHtml !== null)
+            ? skill.cooldownHtml
+            : (skill && skill.cooldown) || '';
+        const skillClassesHtml = (skill && skill.classesHtml !== undefined && skill.classesHtml !== null)
+            ? skill.classesHtml
+            : (skill && skill.classes) || '';
+
+        const skillImage = (skill && skill.image) ? skill.image : 'https://i.imgur.com/placeholder.png';
+
         const skillHTML = `
             <div class="charskill">
                 &nbsp;Skill: 
-                <h2 class="skill-name" contenteditable="true">${skill.name}</h2>
+                <h2 class="skill-name" contenteditable="true">${skillNameHtml}</h2>
                 <button class="remove-skill-btn" onclick="removeSkill(this)" title="Remove this skill">&times;</button>
                 <div class="dots"></div>
                 <div class="skilldescr">
-                    <img src="${skill.image}" class="pageborda skill-image" align="left" onclick="changeImage(this)">
+                    <img src="${skillImage}" class="pageborda skill-image" align="left" onclick="changeImage(this)">
                     <span class="font-fix skill-description" contenteditable="true" style="min-height:83px">
-                        ${skill.description}
+                        ${skillDescriptionHtml}
                     </span>
                 </div>
                 <div class="dots"></div>
                 <div class="fleft">
-                    &nbsp;<u class="font-fix">Cooldown:</u> <span class="cooldown" contenteditable="true">${skill.cooldown}</span>
+                    &nbsp;<u class="font-fix">Cooldown:</u> <span class="cooldown" contenteditable="true">${skillCooldownHtml}</span>
                 </div>
                 <div class="fright">
                     <u class="font-fix energy-required-link" onclick="openEnergySelector(this)">Chakra required:</u> 
@@ -414,7 +581,7 @@ function loadDataIntoPage(data) {
                 </div>
                 <div class="clear"></div>
                 <div class="pageinfo fleft">
-                    &nbsp;Classes: <span class="skill-classes" contenteditable="true">${skill.classes}</span>.
+                    &nbsp;Classes: <span class="skill-classes" contenteditable="true">${skillClassesHtml}</span>.
                 </div>
             </div>`;
         
@@ -428,7 +595,7 @@ function loadDataIntoPage(data) {
     });
     
     const allSkillElements = document.querySelectorAll('.charskill');
-    data.skills.forEach((skill, index) => {
+    (data.skills || []).forEach((skill, index) => {
         if (allSkillElements[index]) {
             const energyDisplay = allSkillElements[index].querySelector('.energy-display');
             energyDisplay.innerHTML = '';
@@ -468,8 +635,12 @@ function exportData() {
     
     const formattedData = {
         name: data.characterName,
+        nameHtml: data.characterNameHtml,
         description: data.characterDescription,
+        descriptionHtml: data.characterDescriptionHtml,
         url: data.characterPortrait,
+        unlockRequirement: data.unlockRequirement,
+        unlockRequirementHtml: data.unlockRequirementHtml,
         skills: data.skills.map(skill => {
             const energyArray = [];
             if (skill.energy) {
@@ -494,10 +665,14 @@ function exportData() {
             
             return {
                 name: skill.name,
+                nameHtml: skill.nameHtml,
                 description: skill.description,
+                descriptionHtml: skill.descriptionHtml,
                 energy: energyArray,
                 classes: classesArray,
+                classesHtml: skill.classesHtml,
                 cooldown: skill.cooldown === "None" ? 0 : parseInt(skill.cooldown) || 0,
+                cooldownHtml: skill.cooldownHtml,
                 url: skill.image
             };
         })
@@ -541,12 +716,17 @@ function importData() {
 }
 
 function convertNewFormatToInternal(newFormatData) {
+    const unlockRequirementText = newFormatData.unlockRequirement || "No requirements";
+
     return {
-        characterName: newFormatData.name,
-        characterDescription: newFormatData.description,
+        characterName: newFormatData.name || '',
+        characterNameHtml: newFormatData.nameHtml !== undefined && newFormatData.nameHtml !== null ? newFormatData.nameHtml : (newFormatData.name || ''),
+        characterDescription: newFormatData.description || '',
+        characterDescriptionHtml: newFormatData.descriptionHtml !== undefined && newFormatData.descriptionHtml !== null ? newFormatData.descriptionHtml : (newFormatData.description || ''),
         characterPortrait: newFormatData.url,
-        unlockRequirement: "No requirements", 
-        skills: newFormatData.skills.map(skill => {
+        unlockRequirement: unlockRequirementText,
+        unlockRequirementHtml: newFormatData.unlockRequirementHtml !== undefined && newFormatData.unlockRequirementHtml !== null ? newFormatData.unlockRequirementHtml : unlockRequirementText,
+        skills: (newFormatData.skills || []).map(skill => {
             const energyObj = {
                 taijutsu: 0,
                 bloodline: 0,
@@ -555,28 +735,39 @@ function convertNewFormatToInternal(newFormatData) {
                 random: 0
             };
             
-            if (skill.energy && Array.isArray(skill.energy)) {
+            if (skill && skill.energy && Array.isArray(skill.energy)) {
                 skill.energy.forEach(energyType => {
-                    const type = energyType.toLowerCase();
+                    const type = String(energyType || '').toLowerCase();
                     if (energyObj.hasOwnProperty(type)) {
                         energyObj[type]++;
                     }
                 });
             }
             
-            const classesString = Array.isArray(skill.classes) 
+            const classesString = Array.isArray(skill && skill.classes) 
                 ? skill.classes.join(', ') 
-                : skill.classes || '';
+                : (skill && skill.classes) || '';
             
-            const cooldownString = skill.cooldown === 0 ? "None" : String(skill.cooldown);
+            const rawCooldown = skill ? skill.cooldown : undefined;
+            const cooldownString = rawCooldown === 0 ? "None" : String(rawCooldown ?? '');
+            const cooldownHtml = skill && skill.cooldownHtml !== undefined && skill.cooldownHtml !== null ? skill.cooldownHtml : cooldownString;
+            const classesHtml = skill && skill.classesHtml !== undefined && skill.classesHtml !== null ? skill.classesHtml : classesString;
+
+            const nameHtml = skill && skill.nameHtml !== undefined && skill.nameHtml !== null ? skill.nameHtml : (skill && skill.name) || '';
+            const descriptionText = skill && skill.description ? skill.description : '';
+            const descriptionHtml = skill && skill.descriptionHtml !== undefined && skill.descriptionHtml !== null ? skill.descriptionHtml : descriptionText;
             
             return {
-                name: skill.name,
-                description: skill.description,
-                image: skill.url,
-                cooldown: cooldownString,
+                name: skill ? skill.name || '' : '',
+                nameHtml,
+                description: descriptionText,
+                descriptionHtml,
+                image: skill ? skill.url : '',
+                cooldown: cooldownString || '',
+                cooldownHtml,
                 energy: energyObj,
-                classes: classesString
+                classes: classesString,
+                classesHtml
             };
         })
     };
@@ -622,7 +813,10 @@ document.addEventListener('keydown', (e) => {
         if (modal.style.display === 'block') {
             closeEnergySelector();
         }
-    }
+    } else if (e.ctrlKey && e.key.toLowerCase() === 'z') {
+    e.preventDefault();
+    restoreDeletedSkill();
+}
 });
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -643,7 +837,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function attachEditableHandlers(root = document) {
         const editableElements = root.querySelectorAll('[contenteditable="true"]');
         editableElements.forEach(element => {
-            // Mark processed to avoid duplicate listeners
             if (element.__plainPasteBound) return;
             element.__plainPasteBound = true;
 
@@ -652,7 +845,6 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             element.addEventListener('paste', (e) => {
-                // Force paste as plain text (strip formatting/attributes)
                 e.preventDefault();
                 const text = (e.clipboardData || window.clipboardData).getData('text') || '';
                 insertPlainTextAtCursor(text);
@@ -660,13 +852,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Initial bind
     attachEditableHandlers();
 
-    // Initialize drag and drop functionality
     initDragAndDrop();
 
-    // Reinitialize when DOM mutates (e.g., skills added) to bind new editables and DnD
     const observer = new MutationObserver((mutations) => {
         let shouldRefreshDnD = false;
         mutations.forEach(m => {
@@ -689,20 +878,35 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function createSkillHTML(skill) {
+    const skillNameHtml = (skill && skill.nameHtml !== undefined && skill.nameHtml !== null)
+        ? skill.nameHtml
+        : (skill && skill.name) || '';
+    const skillDescriptionHtml = (skill && skill.descriptionHtml !== undefined && skill.descriptionHtml !== null)
+        ? skill.descriptionHtml
+        : (skill && skill.description) || '';
+    const skillCooldownHtml = (skill && skill.cooldownHtml !== undefined && skill.cooldownHtml !== null)
+        ? skill.cooldownHtml
+        : (skill && skill.cooldown) || '';
+    const skillClassesHtml = (skill && skill.classesHtml !== undefined && skill.classesHtml !== null)
+        ? skill.classesHtml
+        : (skill && skill.classes) || '';
+
+    const skillImage = (skill && skill.image) ? skill.image : 'https://i.imgur.com/placeholder.png';
+
     return `
         &nbsp;Skill:
-        <h2 class="skill-name" contenteditable="true">${skill.name}</h2>
+        <h2 class="skill-name" contenteditable="true">${skillNameHtml}</h2>
         <button class="remove-skill-btn" onclick="removeSkill(this)" title="Remove this skill">&times;</button>
         <div class="dots"></div>
         <div class="skilldescr">
-            <img src="${skill.image}" class="pageborda skill-image" align="left" onclick="changeImage(this)">
+            <img src="${skillImage}" class="pageborda skill-image" align="left" onclick="changeImage(this)">
             <span class="font-fix skill-description" contenteditable="true" style="min-height:83px">
-                ${skill.description}
+                ${skillDescriptionHtml}
             </span>
         </div>
         <div class="dots"></div>
         <div class="fleft">
-            &nbsp;<u class="font-fix">Cooldown:</u> <span class="cooldown" contenteditable="true">${skill.cooldown}</span>
+            &nbsp;<u class="font-fix">Cooldown:</u> <span class="cooldown" contenteditable="true">${skillCooldownHtml}</span>
         </div>
         <div class="fright">
             <u class="font-fix energy-required-link" onclick="openEnergySelector(this)">Chakra required:</u>
@@ -711,8 +915,20 @@ function createSkillHTML(skill) {
         </div>
         <div class="clear"></div>
         <div class="pageinfo fleft">
-            &nbsp;Classes: <span class="skill-classes" contenteditable="true">${skill.classes}</span>.
+        &nbsp;Classes: <span class="skill-classes" contenteditable="true">${skillClassesHtml}</span>.
         </div>`;
+}
+
+function createEmptySkillSlot() {
+    const emptySkillElement = document.createElement('div');
+    emptySkillElement.className = 'charskill empty-skill';
+    emptySkillElement.innerHTML = `
+        <div class="empty-skill-placeholder">
+            <strong class="empty-skill-title">Empty Skill Slot</strong>
+            <span class="empty-skill-instructions">Drag a skill here or click "Add Skill".</span>
+        </div>
+    `;
+    return emptySkillElement;
 }
 
 function addNewSkill(isLoading = false) {
@@ -721,10 +937,14 @@ function addNewSkill(isLoading = false) {
 
     const newSkillData = {
         name: "New Skill",
+        nameHtml: "New Skill",
         description: "Enter skill description here.",
+        descriptionHtml: "Enter skill description here.",
         image: "https://i.imgur.com/placeholder.png",
         cooldown: "0",
-        classes: "New"
+        cooldownHtml: "0",
+        classes: "New",
+        classesHtml: "New"
     };
 
     if (emptySkillSlot) {
@@ -733,6 +953,8 @@ function addNewSkill(isLoading = false) {
         
         const energyDisplay = emptySkillSlot.querySelector('.energy-display');
         energyDisplay.innerHTML = '';
+
+        rebalanceSkillLayout();
 
     } else {
         const newSkillElement = document.createElement('div');
@@ -751,66 +973,72 @@ function addNewSkill(isLoading = false) {
 function removeSkill(button) {
     const skillElement = button.closest('.charskill');
     const skillName = skillElement.querySelector('.skill-name').textContent;
-    
-    const confirmed = confirm(`Are you sure you want to remove the skill "${skillName}"?`);
-    if (!confirmed) return;
-    
-    skillElement.innerHTML = '';
-    skillElement.classList.add('empty-skill');
-    
+
+showConfirmPopup(`Are you sure you want to remove the skill "<strong>${skillName}</strong>"?`, () => {
+    lastDeletedSkill = skillElement.cloneNode(true);
+    const allSkills = Array.from(document.querySelectorAll('.charskill'));
+    lastDeletedSkillIndex = allSkills.indexOf(skillElement);
+
+    const emptySlot = createEmptySkillSlot();
+    skillElement.replaceWith(emptySlot);
     rebalanceSkillLayout();
-    
-    if (!isLoading) {
-        document.title = '* Naruto-Arena Character Creator [BETA]';
-    }
-}
+    initDragAndDrop();
+    showUndoPopup(skillName);
+    document.title = '* Naruto-Arena Character Creator [BETA]';
+});
 
 function rebalanceSkillLayout() {
     const skillsContainer = document.querySelector('.character-container center');
-    const allSkills = skillsContainer.querySelectorAll('.charskill');
+    if (!skillsContainer) return;
+
+    skillsContainer.querySelectorAll('.clear').forEach(div => div.remove());
+
+    const allSkills = Array.from(skillsContainer.querySelectorAll('.charskill'))
+        .filter(el => el.style.display !== 'none');
+
     const addSkillContainer = skillsContainer.querySelector('.add-skill-container');
-    
-    const clearDivs = skillsContainer.querySelectorAll('.clear');
-    clearDivs.forEach(div => {
-        if (div.previousElementSibling && div.previousElementSibling.classList.contains('charskill')) {
-            div.remove();
-        }
-    });
-    
+
     allSkills.forEach((skill, index) => {
-        if (index % 2 === 1 && index < allSkills.length - 1) {
+        if ((index + 1) % 2 === 0) {
             const clearDiv = document.createElement('div');
             clearDiv.className = 'clear';
             skill.insertAdjacentElement('afterend', clearDiv);
         }
     });
-    
-    if (allSkills.length % 2 === 1) {
+
+    if (allSkills.length % 2 === 1 && addSkillContainer) {
         const clearDiv = document.createElement('div');
         clearDiv.className = 'clear';
         addSkillContainer.insertAdjacentElement('beforebegin', clearDiv);
     }
 }
-
+}
 function loadCharacterImage() {
     const characterContainer = document.querySelector('.character-container');
     const addSkillContainer = document.querySelector('.add-skill-container');
-    
+
     const button = event.target;
     const originalButtonText = button.textContent;
     button.textContent = 'Generating...';
     button.disabled = true;
-    
-    const originalDisplay = addSkillContainer.style.display;
+
+    const originalAddSkillDisplay = addSkillContainer.style.display;
     addSkillContainer.style.display = 'none';
-    
+
     const removeButtons = characterContainer.querySelectorAll('.remove-skill-btn');
     const originalRemoveButtonDisplays = [];
     removeButtons.forEach((btn, index) => {
         originalRemoveButtonDisplays[index] = btn.style.display;
         btn.style.display = 'none';
     });
-    
+
+    const emptySkillSlots = characterContainer.querySelectorAll('.charskill.empty-skill');
+    const originalEmptySkillDisplays = [];
+    emptySkillSlots.forEach((slot, i) => {
+        originalEmptySkillDisplays[i] = slot.style.display;
+        slot.style.display = 'none';
+    });
+
     const options = {
         quality: 1.0,
         pixelRatio: 1,
@@ -820,7 +1048,7 @@ function loadCharacterImage() {
             transformOrigin: 'top left'
         }
     };
-    
+
     htmlToImage.toPng(characterContainer, options)
         .then(function (dataUrl) {
             const newWindow = window.open();
@@ -864,25 +1092,23 @@ function loadCharacterImage() {
                     </body>
                 </html>
             `);
-            
-            button.textContent = originalButtonText;
-            button.disabled = false;
-            addSkillContainer.style.display = originalDisplay;
-            
-            removeButtons.forEach((btn, index) => {
-                btn.style.display = originalRemoveButtonDisplays[index];
-            });
+
         })
         .catch(function (error) {
             console.error('Error generating image:', error);
             alert('Error generating image. Please try again.');
-            
+        })
+        .finally(() => {
             button.textContent = originalButtonText;
             button.disabled = false;
-            addSkillContainer.style.display = originalDisplay;
-            
+            addSkillContainer.style.display = originalAddSkillDisplay;
+
             removeButtons.forEach((btn, index) => {
                 btn.style.display = originalRemoveButtonDisplays[index];
+            });
+
+            emptySkillSlots.forEach((slot, i) => {
+                slot.style.display = originalEmptySkillDisplays[i];
             });
         });
 }
@@ -1113,3 +1339,349 @@ function showCopyFeedback(text) {
         }, 300);
     }, 2000);
 }
+
+function showUndoPopup(skillName) {
+    const existingPopup = document.querySelector('.undo-popup');
+    if (existingPopup) existingPopup.remove();
+
+    const popup = document.createElement('div');
+    popup.className = 'undo-popup';
+    popup.innerHTML = `
+        <span>Skill "<strong>${skillName}</strong>" deleted.</span>
+        <button class="undo-btn">Undo</button>
+        <button class="dismiss-btn">Dismiss</button>
+    `;
+
+    Object.assign(popup.style, {
+        position: 'fixed',
+        bottom: '20px',
+        right: '20px',
+        backgroundColor: '#0066cc',
+        color: 'white',
+        padding: '10px 15px',
+        fontSize: '12px',
+        zIndex: '9999',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
+        transition: 'opacity 0.3s ease'
+    });
+
+    document.body.appendChild(popup);
+
+    popup.querySelector('.undo-btn').onclick = () => {
+        restoreDeletedSkill();
+
+        if (popup.parentNode) popup.remove();
+    };
+
+    popup.querySelector('.dismiss-btn').onclick = () => {
+        popup.style.opacity = '0';
+        setTimeout(() => popup.remove(), 300);
+    };
+
+    setTimeout(() => {
+        popup.style.opacity = '0';
+        setTimeout(() => {
+            if (popup.parentNode) popup.remove();
+        }, 300);
+    }, 5000);
+}
+
+function restoreDeletedSkill() {
+    if (!lastDeletedSkill) return;
+
+    const skillsContainer = document.querySelector('.character-container center');
+    const allSkills = skillsContainer.querySelectorAll('.charskill');
+    const addSkillContainer = document.querySelector('.add-skill-container');
+
+    if (lastDeletedSkillIndex >= allSkills.length) {
+        addSkillContainer.insertAdjacentElement('beforebegin', lastDeletedSkill);
+    } else if (allSkills[lastDeletedSkillIndex].classList.contains('empty-skill')) {
+        allSkills[lastDeletedSkillIndex].replaceWith(lastDeletedSkill);
+    } else {
+        allSkills[lastDeletedSkillIndex].insertAdjacentElement('beforebegin', lastDeletedSkill);
+    }
+
+    rebalanceSkillLayout();
+    initDragAndDrop();
+
+    const popup = document.querySelector('.undo-popup');
+    if (popup) popup.remove();
+
+    lastDeletedSkill = null;
+    lastDeletedSkillIndex = null;
+
+    document.title = '* Naruto-Arena Character Creator [BETA]';
+}
+
+function showConfirmPopup(message, onConfirm, onCancel) {
+    const existing = document.querySelector('.confirm-modal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.className = 'confirm-modal';
+    modal.innerHTML = `
+        <div class="confirm-modal-content">
+            <div class="confirm-modal-header">
+                <h3>Confirmation</h3>
+            </div>
+            <div class="confirm-modal-body">
+                <p>${message}</p>
+            </div>
+            <div class="confirm-modal-footer">
+                <button class="confirm-btn">Yes</button>
+                <button class="cancel-btn">No</button>
+            </div>
+        </div>
+    `;
+
+    Object.assign(modal.style, {
+        position: 'fixed',
+        top: '0',
+        left: '0',
+        width: '100%',
+        height: '100%',
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        zIndex: '2000',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center'
+    });
+
+    const content = modal.querySelector('.confirm-modal-content');
+    Object.assign(content.style, {
+        backgroundColor: '#fff',
+        border: '1px solid #000',
+        padding: '15px 20px',
+        maxWidth: '300px',
+        textAlign: 'center',
+        fontFamily: "'Trebuchet MS', Arial, sans-serif",
+        boxShadow: '0 2px 6px rgba(0,0,0,0.3)'
+    });
+
+    modal.querySelector('.confirm-modal-header h3').style.margin = '0 0 10px 0';
+    modal.querySelector('.confirm-modal-body p').style.margin = '10px 0';
+    const footer = modal.querySelector('.confirm-modal-footer');
+    footer.style.marginTop = '15px';
+    footer.style.display = 'flex';
+    footer.style.justifyContent = 'center';
+    footer.style.gap = '10px';
+
+    const confirmBtn = modal.querySelector('.confirm-btn');
+    const cancelBtn = modal.querySelector('.cancel-btn');
+
+
+    confirmBtn.addEventListener('click', () => {
+        modal.remove();
+        onConfirm && onConfirm();
+    });
+
+
+    cancelBtn.addEventListener('click', () => {
+        modal.remove();
+        onCancel && onCancel();
+    });
+
+    document.body.appendChild(modal);
+}
+
+window.addEventListener('error', function (e) {
+    if (e.message && e.message.includes('rebalanceSkillLayout is not defined')) {
+        e.preventDefault(); 
+        return false;       
+    }
+});
+
+function initializeTextToolbar() {
+  const toolbar = document.getElementById("text-toolbar");
+  if (!toolbar) return;
+
+  let activeEditor = null;
+  let keepToolbarVisible = false;
+
+  function positionToolbar(target) {
+    const rect = target.getBoundingClientRect();
+    const toolbarHeight = toolbar.offsetHeight || 35;
+    const scrollTop = window.scrollY || document.documentElement.scrollTop;
+    const scrollLeft = window.scrollX || document.documentElement.scrollLeft;
+    const top = rect.top + scrollTop - toolbarHeight - 10;
+    const left = rect.left + scrollLeft + rect.width / 2 - toolbar.offsetWidth / 2;
+    toolbar.style.top = `${Math.max(10, top)}px`;
+    toolbar.style.left = `${Math.max(10, left)}px`;
+  }
+
+  function bindEditable(el) {
+    if (el.__toolbarBound) return;
+    el.__toolbarBound = true;
+
+    el.addEventListener("focus", e => {
+      activeEditor = e.target;
+      positionToolbar(e.target);
+      toolbar.style.display = "flex";
+    });
+
+    el.addEventListener("input", e => positionToolbar(e.target));
+    el.addEventListener("click", e => positionToolbar(e.target));
+
+    el.addEventListener("blur", () => {
+      setTimeout(() => {
+        if (!keepToolbarVisible) {
+          const active = document.activeElement;
+          const insideToolbar = active && toolbar.contains(active);
+          const insideEditor = active && active.getAttribute("contenteditable") === "true";
+          if (!insideToolbar && !insideEditor) {
+            toolbar.style.display = "none";
+            activeEditor = null;
+          }
+        }
+      }, 150);
+    });
+  }
+
+  function refreshBindings() {
+    document.querySelectorAll('[contenteditable="true"]').forEach(bindEditable);
+  }
+
+  refreshBindings();
+
+  const observer = new MutationObserver(mutations => {
+    let found = false;
+    for (const m of mutations) {
+      for (const node of m.addedNodes) {
+        if (node.nodeType === 1 && (node.matches('[contenteditable="true"]') || node.querySelector('[contenteditable="true"]'))) {
+          found = true;
+        }
+      }
+    }
+    if (found) refreshBindings();
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
+
+  toolbar.addEventListener("mousedown", e => {
+    keepToolbarVisible = true;
+    setTimeout(() => keepToolbarVisible = false, 300);
+  });
+
+  toolbar.querySelectorAll("button[data-command]").forEach(btn => {
+    btn.addEventListener("click", e => {
+      e.preventDefault();
+      if (activeEditor) {
+        activeEditor.focus();
+        document.execCommand(btn.dataset.command, false, null);
+        document.title = "* Naruto-Arena Character Creator [BETA]";
+      }
+    });
+  });
+
+  const textColorPicker = document.getElementById("text-color-picker");
+  textColorPicker.addEventListener("focus", () => (keepToolbarVisible = true));
+  textColorPicker.addEventListener("blur", () => setTimeout(() => (keepToolbarVisible = false), 300));
+
+  textColorPicker.addEventListener("input", e => {
+    if (activeEditor) {
+      activeEditor.focus();
+      document.execCommand("foreColor", false, e.target.value);
+      document.title = "* Naruto-Arena Character Creator [BETA]";
+    }
+  });
+
+const bgColorPicker = document.getElementById("bg-color-picker");
+bgColorPicker.addEventListener("focus", () => (keepToolbarVisible = true));
+bgColorPicker.addEventListener("blur", () => setTimeout(() => (keepToolbarVisible = false), 300));
+
+bgColorPicker.addEventListener("input", (e) => {
+  if (!activeEditor) return;
+  const color = e.target.value;
+  activeEditor.focus();
+
+  const selection = window.getSelection();
+  if (!selection.rangeCount) return;
+
+  const range = selection.getRangeAt(0);
+  let commonAncestor = range.commonAncestorContainer;
+
+  const existingHighlight = commonAncestor.nodeType === 1
+    ? commonAncestor.closest(".highlighted-text")
+    : commonAncestor.parentElement && commonAncestor.parentElement.closest(".highlighted-text");
+
+  if (existingHighlight) {
+    existingHighlight.style.backgroundColor = color;
+    return;
+  }
+
+  const span = document.createElement("span");
+  span.style.backgroundColor = color;
+  span.classList.add("highlighted-text");
+
+  try {
+    range.surroundContents(span);
+  } catch {
+    const frag = range.extractContents();
+    span.appendChild(frag);
+    range.insertNode(span);
+  }
+
+  const newRange = document.createRange();
+  newRange.selectNodeContents(span);
+  newRange.collapse(false);
+  selection.removeAllRanges();
+  selection.addRange(newRange);
+
+  document.title = "* Naruto-Arena Character Creator [BETA]";
+});
+
+  const addNoteBtn = document.getElementById("add-skill-note-btn");
+  addNoteBtn.addEventListener("mousedown", e => {
+    e.preventDefault();
+    if (!activeEditor) return;
+
+    const dots = document.createElement("div");
+    dots.className = "dots";
+
+    const skillNote = document.createElement("div");
+    skillNote.className = "skill-note";
+    skillNote.contentEditable = "true";
+    skillNote.innerHTML = "New note...";
+
+    const parent = activeEditor.closest(".charskill, .pagedescription, .font-fix");
+    if (parent && parent.parentNode) {
+      parent.parentNode.insertBefore(dots, parent.nextSibling);
+      dots.after(skillNote);
+      bindEditable(skillNote);
+      skillNote.focus();
+    } else {
+      activeEditor.insertAdjacentElement("afterend", dots);
+      dots.after(skillNote);
+      bindEditable(skillNote);
+      skillNote.focus();
+    }
+  });
+
+  document.addEventListener("keydown", e => {
+    if (e.target.classList.contains("skill-note") && e.key === "Enter") {
+      e.preventDefault();
+      const newNote = document.createElement("div");
+      newNote.className = "skill-note";
+      newNote.contentEditable = "true";
+      newNote.innerHTML = " ";
+      e.target.insertAdjacentElement("afterend", newNote);
+      bindEditable(newNote);
+      newNote.focus();
+      document.title = "* Naruto-Arena Character Creator [BETA]";
+    }
+  });
+
+  window.addEventListener("scroll", () => activeEditor && positionToolbar(activeEditor));
+  window.addEventListener("resize", () => activeEditor && positionToolbar(activeEditor));
+
+  document.addEventListener("keydown", e => {
+    if (!activeEditor) return;
+    const k = e.key.toLowerCase();
+    if (e.ctrlKey && k === "b") { e.preventDefault(); document.execCommand("bold"); }
+    else if (e.ctrlKey && k === "i") { e.preventDefault(); document.execCommand("italic"); }
+    else if (e.ctrlKey && k === "u") { e.preventDefault(); document.execCommand("underline"); }
+  });
+}
+
+document.addEventListener("DOMContentLoaded", initializeTextToolbar);

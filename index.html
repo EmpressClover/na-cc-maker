@@ -14,7 +14,8 @@
             <br> Use the buttons below to save and load your character<br>
             Click on 'Chakra required' to change Chakra required for each skill.<br>
             Drag and Drop skills to replace their order.<br>
-            "Load Character Image" opens a new tab with your character image.
+            "Generate Character Image" opens a new tab with your character image.<br>
+            <p>You can now undo the deletion of your last skill with CTRL+Z or through the popup.</p>
         </p>
     </div>
     <div class="controls">
@@ -24,11 +25,12 @@
         <input type="file" id="importFile" accept=".json" onchange="importData()" style="display: none;">
         <button onclick="document.getElementById('importFile').click()">Import JSON</button>
         <button onclick="resetToDefault()">Reset to Default</button>
-        <button onclick="loadCharacterImage()">Load Character Image</button>
+        <button onclick="loadCharacterImage()">Generate Character Image</button>
     </div><br><br>
 
 
     <div class="character-container">
+        
         <center>
             <div class="pagedescription">
                 <h2 class="font-fix character-name" contenteditable="true">Haruno Sakura</h2>
@@ -207,7 +209,15 @@
             </div>
         </div>
     </div>
+<div id="text-toolbar">
+  <button data-command="bold" title="Bold (Ctrl+B)"><b>B</b></button>
+  <button data-command="italic" title="Italic (Ctrl+I)"><i>I</i></button>
+  <button data-command="underline" title="Underline (Ctrl+U)"><u>U</u></button>
+  <p>Color:</p><input type="color" id="text-color-picker" title="Text color" />
+  <p>, Background-Color:</p>  <input type="color" id="bg-color-picker" title="Change text background color" />
+<button id="add-skill-note-btn" title="Add a skill note">Add Skill Note</button>
 
+</div>
 
     <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.js"></script>
     <script src="script.js"></script>
