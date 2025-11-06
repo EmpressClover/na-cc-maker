@@ -14,7 +14,7 @@
             <br> Use the buttons below to save and load your character<br>
             Click on 'Chakra required' to change Chakra required for each skill.<br>
             Drag and Drop skills to replace their order.<br>
-            "Generate Character Image" opens a new tab with your character image.<br>
+            "Generate Character Image" uploads to Imgur and shares a direct link in a new tab.<br>
             <p>You can now undo the deletion of your last skill with CTRL+Z or through the popup.</p>
         </p>
     </div>
@@ -25,7 +25,7 @@
         <input type="file" id="importFile" accept=".json" onchange="importData()" style="display: none;">
         <button onclick="document.getElementById('importFile').click()">Import JSON</button>
         <button onclick="resetToDefault()">Reset to Default</button>
-        <button onclick="loadCharacterImage()">Generate Character Image</button>
+        <button onclick="loadCharacterImage(this)">Generate Character Image</button>
     </div><br><br>
 
 

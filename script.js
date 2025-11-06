@@ -2,6 +2,42 @@
 let draggedSkill = null;
 let lastDeletedSkill = null;
 let lastDeletedSkillIndex = null;
+const IMGUR_CLIENT_ID_STORAGE_KEY = 'na_cc_imgur_client_id';
+const DEFAULT_IMGUR_CLIENT_ID = '546c25a59c58ad7';
+
+function getImgurClientId() {
+    let storedId = localStorage.getItem(IMGUR_CLIENT_ID_STORAGE_KEY);
+    if (storedId && storedId.trim()) {
+        return storedId.trim();
+    }
+
+    return DEFAULT_IMGUR_CLIENT_ID;
+}
+
+async function uploadImageToImgur(dataUrl, clientId) {
+    const base64Image = dataUrl.split(',')[1];
+
+    const response = await fetch('https://api.imgur.com/3/image', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Client-ID ${clientId}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            image: base64Image,
+            type: 'base64'
+        })
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result?.success || !result?.data?.link) {
+        const errorMessage = result?.data?.error || result?.data?.message || 'Unknown error';
+        throw new Error(`Imgur upload failed: ${errorMessage}`);
+    }
+
+    return result.data.link;
+}
 
 function handleDragStart(e) {
     draggedSkill = this;
@@ -1013,31 +1049,80 @@ function rebalanceSkillLayout() {
     }
 }
 }
-function loadCharacterImage() {
+async function loadCharacterImage(triggerButton) {
     const characterContainer = document.querySelector('.character-container');
     const addSkillContainer = document.querySelector('.add-skill-container');
 
-    const button = event.target;
-    const originalButtonText = button.textContent;
-    button.textContent = 'Generating...';
-    button.disabled = true;
+    const button = triggerButton instanceof HTMLButtonElement ? triggerButton : null;
+    const originalButtonText = button ? button.textContent : '';
+    if (button) {
+        button.textContent = 'Generating...';
+        button.disabled = true;
+    }
 
-    const originalAddSkillDisplay = addSkillContainer.style.display;
-    addSkillContainer.style.display = 'none';
+    const originalAddSkillDisplay = addSkillContainer ? addSkillContainer.style.display : '';
+    if (addSkillContainer) {
+        addSkillContainer.style.display = 'none';
+    }
 
-    const removeButtons = characterContainer.querySelectorAll('.remove-skill-btn');
+    const removeButtons = characterContainer ? characterContainer.querySelectorAll('.remove-skill-btn') : [];
     const originalRemoveButtonDisplays = [];
     removeButtons.forEach((btn, index) => {
         originalRemoveButtonDisplays[index] = btn.style.display;
         btn.style.display = 'none';
     });
 
-    const emptySkillSlots = characterContainer.querySelectorAll('.charskill.empty-skill');
+    const emptySkillSlots = characterContainer ? characterContainer.querySelectorAll('.charskill.empty-skill') : [];
     const originalEmptySkillDisplays = [];
     emptySkillSlots.forEach((slot, i) => {
         originalEmptySkillDisplays[i] = slot.style.display;
         slot.style.display = 'none';
     });
+
+    const newWindow = window.open('', '_blank');
+    if (newWindow) {
+        newWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+                <head>
+                    <title>Character Image</title>
+                    <style>
+                        body { margin: 0; padding: 20px; background: #f0f0f0; text-align: center; font-family: 'Trebuchet MS', Arial, sans-serif; }
+                        img { max-width: 100%; height: auto; border: 1px solid #ccc; background: white; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+                        h2 { color: #280092; margin-bottom: 20px; }
+                        button {
+                            font-family: 'Trebuchet MS', Arial, sans-serif;
+                            font-size: 11px;
+                            padding: 8px 16px;
+                            background-color: #0066cc;
+                            color: white;
+                            border: none;
+                            cursor: pointer;
+                            margin: 0 5px;
+                            transition: background-color 0.2s;
+                        }
+                        button:hover { background-color: #0052a3; }
+                        .link-container { display: flex; align-items: center; justify-content: center; gap: 8px; }
+                        .link-container input {
+                            width: 60%;
+                            padding: 6px 8px;
+                            font-size: 11px;
+                            border: 1px solid #ccc;
+                            border-radius: 4px;
+                            background: white;
+                            color: #333;
+                        }
+                        .status-message { color: #555; font-size: 12px; }
+                    </style>
+                </head>
+                <body>
+                    <h2>Character Image</h2>
+                    <p class="status-message">Generating image and uploading to Imgur...</p>
+                </body>
+            </html>
+        `);
+        newWindow.document.close();
+    }
 
     const options = {
         quality: 1.0,
@@ -1049,68 +1134,86 @@ function loadCharacterImage() {
         }
     };
 
-    htmlToImage.toPng(characterContainer, options)
-        .then(function (dataUrl) {
-            const newWindow = window.open();
-            newWindow.document.write(`
-                <html>
-                    <head>
-                        <title>Character Image</title>
-                        <style>
-                            body { margin: 0; padding: 20px; background: #f0f0f0; text-align: center; font-family: 'Trebuchet MS', Arial, sans-serif; }
-                            img { max-width: 100%; height: auto; border: 1px solid #ccc; background: white; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-                            h2 { color: #280092; margin-bottom: 20px; }
-                            button { 
-                                font-family: 'Trebuchet MS', Arial, sans-serif;
-                                font-size: 11px;
-                                padding: 8px 16px;
-                                background-color: #0066cc;
-                                color: white;
-                                border: none;
-                                cursor: pointer;
-                                margin: 0 5px;
-                                transition: background-color 0.2s;
-                            }
-                            button:hover { background-color: #0052a3; }
-                        </style>
-                    </head>
-                    <body>
-                        <h2>Character Image</h2>
-                        <img src="${dataUrl}" alt="Character Image" />
-                        <br><br>
-                        <button onclick="window.close()">Close</button>
-                        <button onclick="downloadImage()">Download Image</button>
-                        <script>
-                            function downloadImage() {
-                                const link = document.createElement('a');
-                                const characterName = document.querySelector('img').alt || 'character';
-                                link.download = characterName.replace(/[^a-z0-9]/gi, '_').toLowerCase() + '.png';
-                                link.href = '${dataUrl}';
-                                link.click();
-                            }
-                        </script>
-                    </body>
-                </html>
-            `);
+    try {
+        if (!characterContainer) {
+            throw new Error('Unable to locate character container for rendering.');
+        }
 
-        })
-        .catch(function (error) {
-            console.error('Error generating image:', error);
-            alert('Error generating image. Please try again.');
-        })
-        .finally(() => {
+        const dataUrl = await htmlToImage.toPng(characterContainer, options);
+        const clientId = getImgurClientId();
+
+        if (!clientId) {
+            throw new Error('Imgur Client ID is required to upload images.');
+        }
+
+        const directLink = await uploadImageToImgur(dataUrl, clientId);
+        const characterName = document.querySelector('.character-name')?.textContent?.trim() || 'character';
+        const safeFileName = (characterName.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'character') + '.png';
+
+        if (newWindow) {
+            newWindow.document.title = 'Character Image';
+            const body = newWindow.document.body;
+            body.innerHTML = `
+                <h2>Character Image</h2>
+                <img id="generatedCharacterImage" src="" alt="">
+                <br><br>
+                <div class="link-container">
+                    <span>Direct link:</span>
+                    <input id="imgurLinkField" type="text" readonly>
+                </div>
+                <br>
+                <button onclick="window.close()">Close</button>
+                <button id="downloadButton">Download Image</button>
+            `;
+
+            const imageElement = newWindow.document.getElementById('generatedCharacterImage');
+            const linkField = newWindow.document.getElementById('imgurLinkField');
+            const downloadButton = newWindow.document.getElementById('downloadButton');
+
+            imageElement.src = directLink;
+            imageElement.alt = characterName;
+            linkField.value = directLink;
+            linkField.addEventListener('focus', () => linkField.select());
+            linkField.addEventListener('click', () => linkField.select());
+
+            downloadButton.addEventListener('click', () => {
+                const link = newWindow.document.createElement('a');
+                link.download = safeFileName;
+                link.href = directLink;
+                link.click();
+            });
+        } else {
+            window.open(directLink, '_blank');
+        }
+    } catch (error) {
+        console.error('Error generating or uploading image:', error);
+        if (newWindow) {
+            newWindow.document.title = 'Upload Failed';
+            newWindow.document.body.innerHTML = `
+                <h2>Upload Failed</h2>
+                <p class="status-message">${error.message}</p>
+                <button onclick="window.close()">Close</button>
+            `;
+        }
+        alert('Error generating or uploading image. ' + error.message);
+    } finally {
+        if (button) {
             button.textContent = originalButtonText;
             button.disabled = false;
+        }
+
+        if (addSkillContainer) {
             addSkillContainer.style.display = originalAddSkillDisplay;
+        }
 
-            removeButtons.forEach((btn, index) => {
-                btn.style.display = originalRemoveButtonDisplays[index];
-            });
-
-            emptySkillSlots.forEach((slot, i) => {
-                slot.style.display = originalEmptySkillDisplays[i];
-            });
+        removeButtons.forEach((btn, index) => {
+            btn.style.display = originalRemoveButtonDisplays[index];
         });
+
+        emptySkillSlots.forEach((slot, i) => {
+            slot.style.display = originalEmptySkillDisplays[i];
+        });
+    }
 }
 
 function toggleSkillGlossary() {
